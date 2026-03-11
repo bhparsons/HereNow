@@ -1,7 +1,7 @@
 {
-  "name": "herenowtemp",
+  "name": "herenow",
   "version": "1.0.0",
-  "main": "index.ts",
+  "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -9,13 +9,44 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-google-signin/google-signin": "^16.1.2",
+    "babel-preset-expo": "~55.0.8",
     "expo": "~55.0.5",
+    "expo-apple-authentication": "~55.0.8",
+    "expo-build-properties": "~55.0.9",
+    "expo-camera": "~55.0.9",
+    "expo-clipboard": "~55.0.8",
+    "expo-constants": "~55.0.7",
+    "expo-contacts": "~55.0.8",
+    "expo-crypto": "~55.0.9",
+    "expo-device": "~55.0.9",
+    "expo-haptics": "~55.0.8",
+    "expo-image-picker": "~55.0.11",
+    "expo-linking": "~55.0.7",
+    "expo-notifications": "~55.0.11",
+    "expo-router": "~55.0.4",
     "expo-status-bar": "~55.0.4",
+    "expo-updates": "~55.0.12",
+    "firebase": "^12.10.0",
+    "nativewind": "^4.1",
     "react": "19.2.0",
-    "react-native": "0.83.2"
+    "react-dom": "19.2.0",
+    "react-native": "0.83.2",
+    "react-native-gesture-handler": "~2.30.0",
+    "react-native-qrcode-svg": "^6.3.21",
+    "react-native-reanimated": "4.2.1",
+    "react-native-safe-area-context": "~5.6.2",
+    "react-native-screens": "~4.23.0",
+    "react-native-svg": "15.15.3",
+    "tailwindcss": "3.4.17"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "@types/sharp": "^0.31.1",
+    "sharp": "^0.34.5",
+    "tsx": "^4.21.0",
     "typescript": "~5.9.2"
   },
   "private": true

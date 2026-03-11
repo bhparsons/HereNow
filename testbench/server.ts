@@ -1,0 +1,282 @@
+import express from 'express';
+import path from 'path';
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
+
+// Initialize Firebase Admin
+const serviceAccount = require('../secrets/herenow-79f9e-firebase-adminsdk-fbsvc-19dc8f9d2c.json');
+initializeApp({
+  credential: cert(serviceAccount),
+});
+
+const db = getFirestore();
+const auth = getAuth();
+const app = express();
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+app.get('/api/users', async (_req, res) => {
+  try {
+    const snap = await db.collection('users').get();
+    const users = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        uid: d.id,
+        displayName: data.displayName,
+        username: data.username,
+        photoUrl: data.photoUrl ?? null,
+        createdAt: data.createdAt?.toDate?.() ?? null,
+      };
+    });
+    res.json(users);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/users', async (req, res) => {
+  try {
+    const { email, password, displayName, username } = req.body;
+    if (!email || !password || !displayName || !username) {
+      return res.status(400).json({ error: 'email, password, displayName, and username are required' });
+    }
+
+    // Create Auth user
+    const userRecord = await auth.createUser({
+      email,
+      password,
+      displayName,
+    });
+
+    // Create Firestore profile
+    await db.collection('users').doc(userRecord.uid).set({
+      displayName,
+      username,
+      photoUrl: null,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    res.json({ uid: userRecord.uid, displayName, username, email });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/users/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+
+    // Delete friends subcollection (both sides)
+    const friendsSnap = await db.collection('users').doc(uid).collection('friends').get();
+    for (const friendDoc of friendsSnap.docs) {
+      // Remove from friend's side
+      await db.collection('users').doc(friendDoc.id).collection('friends').doc(uid).delete();
+      // Remove from this user's side
+      await friendDoc.ref.delete();
+    }
+
+    // Delete availability
+    await db.collection('availability').doc(uid).delete();
+
+    // Delete Firestore profile
+    await db.collection('users').doc(uid).delete();
+
+    // Delete Auth account
+    await auth.deleteUser(uid);
+
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Friends ─────────────────────────────────────────────────────────────────
+
+app.get('/api/users/:uid/friends', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const snap = await db.collection('users').doc(uid).collection('friends').get();
+    const friends = snap.docs.map((d) => ({
+      friendId: d.id,
+      status: d.data().status,
+      createdAt: d.data().createdAt?.toDate?.() ?? null,
+    }));
+    res.json(friends);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/friends/request', async (req, res) => {
+  try {
+    const { fromUid, toUid } = req.body;
+    if (!fromUid || !toUid) {
+      return res.status(400).json({ error: 'fromUid and toUid are required' });
+    }
+    if (fromUid === toUid) {
+      return res.status(400).json({ error: 'Cannot send friend request to yourself' });
+    }
+
+    // Check not already friends or pending
+    const existing = await db.collection('users').doc(fromUid).collection('friends').doc(toUid).get();
+    if (existing.exists) {
+      return res.status(400).json({ error: 'Friend request already exists' });
+    }
+
+    // Sender side
+    await db.collection('users').doc(fromUid).collection('friends').doc(toUid).set({
+      status: 'pending_sent',
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    // Receiver side
+    await db.collection('users').doc(toUid).collection('friends').doc(fromUid).set({
+      status: 'pending_received',
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/friends/accept', async (req, res) => {
+  try {
+    const { uid, friendId } = req.body;
+    if (!uid || !friendId) {
+      return res.status(400).json({ error: 'uid and friendId are required' });
+    }
+
+    await db.collection('users').doc(uid).collection('friends').doc(friendId).set(
+      { status: 'accepted' },
+      { merge: true }
+    );
+    await db.collection('users').doc(friendId).collection('friends').doc(uid).set(
+      { status: 'accepted' },
+      { merge: true }
+    );
+
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/friends/decline', async (req, res) => {
+  try {
+    const { uid, friendId } = req.body;
+    if (!uid || !friendId) {
+      return res.status(400).json({ error: 'uid and friendId are required' });
+    }
+
+    await db.collection('users').doc(uid).collection('friends').doc(friendId).delete();
+    await db.collection('users').doc(friendId).collection('friends').doc(uid).delete();
+
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Availability ────────────────────────────────────────────────────────────
+
+app.get('/api/availability', async (_req, res) => {
+  try {
+    const snap = await db.collection('availability').get();
+    const availability = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        userId: d.id,
+        isAvailable: data.isAvailable,
+        availableUntil: data.availableUntil?.toDate?.() ?? null,
+        startedAt: data.startedAt?.toDate?.() ?? null,
+      };
+    });
+    res.json(availability);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/availability', async (req, res) => {
+  try {
+    const { uid, durationMinutes } = req.body;
+    if (!uid || !durationMinutes) {
+      return res.status(400).json({ error: 'uid and durationMinutes are required' });
+    }
+
+    const now = new Date();
+    const availableUntil = new Date(now.getTime() + durationMinutes * 60 * 1000);
+
+    await db.collection('availability').doc(uid).set({
+      isAvailable: true,
+      availableUntil: Timestamp.fromDate(availableUntil),
+      startedAt: Timestamp.fromDate(now),
+    });
+
+    res.json({ success: true, availableUntil: availableUntil.toISOString() });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/availability/:uid', async (req, res) => {
+  try {
+    await db.collection('availability').doc(req.params.uid).delete();
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Dashboard State ─────────────────────────────────────────────────────────
+
+app.get('/api/state', async (_req, res) => {
+  try {
+    // Users
+    const usersSnap = await db.collection('users').get();
+    const users = await Promise.all(
+      usersSnap.docs.map(async (d) => {
+        const data = d.data();
+        const friendsSnap = await d.ref.collection('friends').get();
+        const friends = friendsSnap.docs.map((f) => ({
+          friendId: f.id,
+          status: f.data().status,
+        }));
+        return {
+          uid: d.id,
+          displayName: data.displayName,
+          username: data.username,
+          friends,
+        };
+      })
+    );
+
+    // Availability
+    const availSnap = await db.collection('availability').get();
+    const availability = availSnap.docs.map((d) => {
+      const data = d.data();
+      return {
+        userId: d.id,
+        availableUntil: data.availableUntil?.toDate?.() ?? null,
+        startedAt: data.startedAt?.toDate?.() ?? null,
+      };
+    });
+
+    res.json({ users, availability });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Start Server ────────────────────────────────────────────────────────────
+
+const PORT = 3456;
+app.listen(PORT, () => {
+  console.log(`HereNow Test Bench running at http://localhost:${PORT}`);
+});

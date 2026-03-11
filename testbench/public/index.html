@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HereNow Test Bench</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; padding: 20px; }
+    h1 { margin-bottom: 20px; color: #1a1a2e; }
+    h2 { margin-bottom: 12px; color: #16213e; font-size: 18px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .panel { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .panel-full { grid-column: 1 / -1; }
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #555; }
+    input, select { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; margin-bottom: 10px; }
+    button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .btn-primary { background: #4361ee; color: #fff; }
+    .btn-primary:hover { background: #3a56d4; }
+    .btn-danger { background: #e63946; color: #fff; }
+    .btn-danger:hover { background: #c1121f; }
+    .btn-success { background: #2a9d8f; color: #fff; }
+    .btn-success:hover { background: #238a7e; }
+    .btn-warning { background: #e9c46a; color: #333; }
+    .btn-warning:hover { background: #ddb95b; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #eee; }
+    th { background: #f8f9fa; font-weight: 600; color: #555; }
+    .form-row { display: flex; gap: 10px; align-items: flex-end; }
+    .form-row > div { flex: 1; }
+    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .status-pending_sent { background: #fff3cd; color: #856404; }
+    .status-pending_received { background: #cce5ff; color: #004085; }
+    .status-accepted { background: #d4edda; color: #155724; }
+    .status-available { background: #d4edda; color: #155724; }
+    .mono { font-family: monospace; font-size: 12px; color: #666; }
+    .empty { color: #999; font-style: italic; padding: 12px 0; }
+    .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; border-radius: 6px; color: #fff; font-size: 14px; z-index: 100; transition: opacity 0.3s; }
+    .toast-success { background: #2a9d8f; }
+    .toast-error { background: #e63946; }
+    .actions { display: flex; gap: 4px; }
+  </style>
+</head>
+<body>
+  <h1>HereNow Test Bench</h1>
+
+  <div class="grid">
+    <!-- Create User -->
+    <div class="panel">
+      <h2>Create User</h2>
+      <div class="form-row">
+        <div><label>Display Name</label><input id="u-name" placeholder="Jane Doe"></div>
+        <div><label>Username</label><input id="u-username" placeholder="janedoe"></div>
+      </div>
+      <div class="form-row">
+        <div><label>Email</label><input id="u-email" placeholder="jane@test.com"></div>
+        <div><label>Password</label><input id="u-password" type="password" placeholder="testpass123"></div>
+      </div>
+      <button class="btn-primary" onclick="createUser()">Create User</button>
+    </div>
+
+    <!-- Friends -->
+    <div class="panel">
+      <h2>Friend Actions</h2>
+      <label>From User</label>
+      <select id="f-from"></select>
+      <label>To User</label>
+      <select id="f-to"></select>
+      <div style="display: flex; gap: 8px; margin-top: 4px;">
+        <button class="btn-primary" onclick="sendRequest()">Send Request</button>
+        <button class="btn-success" onclick="acceptRequest()">Accept</button>
+        <button class="btn-danger" onclick="declineRequest()">Decline / Remove</button>
+      </div>
+    </div>
+
+    <!-- Users List -->
+    <div class="panel">
+      <h2>Users</h2>
+      <div id="users-table"></div>
+    </div>
+
+    <!-- Availability -->
+    <div class="panel">
+      <h2>Availability</h2>
+      <div class="form-row">
+        <div><label>User</label><select id="a-user"></select></div>
+        <div>
+          <label>Duration</label>
+          <select id="a-duration">
+            <option value="5">5 min</option>
+            <option value="15">15 min</option>
+            <option value="30" selected>30 min</option>
+            <option value="60">60 min</option>
+          </select>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-success" onclick="setAvailable()">Set Available</button>
+        <button class="btn-danger" onclick="setUnavailable()">Set Unavailable</button>
+      </div>
+      <div id="availability-table" style="margin-top: 12px;"></div>
+    </div>
+
+    <!-- State Viewer -->
+    <div class="panel panel-full">
+      <h2>Full State <button class="btn-primary btn-sm" onclick="refreshAll()" style="margin-left: 8px;">Refresh</button></h2>
+      <div id="state-view" style="margin-top: 8px;"></div>
+    </div>
+  </div>
+
+  <script>
+    let users = [];
+
+    async function api(method, path, body) {
+      const opts = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(path, opts);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+      return data;
+    }
+
+    function toast(msg, type = 'success') {
+      const el = document.createElement('div');
+      el.className = `toast toast-${type}`;
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 2500);
+    }
+
+    function populateSelects() {
+      const selects = ['f-from', 'f-to', 'a-user'];
+      for (const id of selects) {
+        const sel = document.getElementById(id);
+        const val = sel.value;
+        sel.innerHTML = users.map(u =>
+          `<option value="${u.uid}">${u.displayName} (@${u.username})</option>`
+        ).join('');
+        if (val && users.find(u => u.uid === val)) sel.value = val;
+      }
+    }
+
+    async function loadUsers() {
+      users = await api('GET', '/api/users');
+      populateSelects();
+      let html = '';
+      if (users.length === 0) {
+        html = '<p class="empty">No users yet. Create one above.</p>';
+      } else {
+        html = '<table><tr><th>Name</th><th>Username</th><th>UID</th><th></th></tr>';
+        for (const u of users) {
+          html += `<tr>
+            <td>${u.displayName}</td>
+            <td>@${u.username}</td>
+            <td class="mono">${u.uid.slice(0, 12)}...</td>
+            <td><button class="btn-danger btn-sm" onclick="deleteUser('${u.uid}')">Delete</button></td>
+          </tr>`;
+        }
+        html += '</table>';
+      }
+      document.getElementById('users-table').innerHTML = html;
+    }
+
+    async function loadAvailability() {
+      const avail = await api('GET', '/api/availability');
+      let html = '';
+      if (avail.length === 0) {
+        html = '<p class="empty">No one is currently available.</p>';
+      } else {
+        html = '<table><tr><th>User</th><th>Until</th><th></th></tr>';
+        for (const a of avail) {
+          const user = users.find(u => u.uid === a.userId);
+          const name = user ? `${user.displayName}` : a.userId.slice(0, 12);
+          const until = a.availableUntil ? new Date(a.availableUntil).toLocaleTimeString() : '?';
+          html += `<tr>
+            <td>${name} <span class="status-badge status-available">available</span></td>
+            <td>${until}</td>
+            <td><button class="btn-danger btn-sm" onclick="setUnavailableFor('${a.userId}')">Remove</button></td>
+          </tr>`;
+        }
+        html += '</table>';
+      }
+      document.getElementById('availability-table').innerHTML = html;
+    }
+
+    async function loadState() {
+      const state = await api('GET', '/api/state');
+      let html = '<table><tr><th>User</th><th>Friends</th><th>Available</th></tr>';
+      for (const u of state.users) {
+        const friendsStr = u.friends.length === 0 ? '<span class="empty">none</span>' :
+          u.friends.map(f => {
+            const friendUser = state.users.find(x => x.uid === f.friendId);
+            const name = friendUser ? friendUser.displayName : f.friendId.slice(0, 8);
+            return `${name} <span class="status-badge status-${f.status}">${f.status}</span>`;
+          }).join(', ');
+        const avail = state.availability.find(a => a.userId === u.uid);
+        const availStr = avail
+          ? `<span class="status-badge status-available">until ${new Date(avail.availableUntil).toLocaleTimeString()}</span>`
+          : '<span style="color:#999">no</span>';
+        html += `<tr><td>${u.displayName} <span class="mono">@${u.username}</span></td><td>${friendsStr}</td><td>${availStr}</td></tr>`;
+      }
+      html += '</table>';
+      if (state.users.length === 0) html = '<p class="empty">No data yet.</p>';
+      document.getElementById('state-view').innerHTML = html;
+    }
+
+    async function refreshAll() {
+      try {
+        await loadUsers();
+        await loadAvailability();
+        await loadState();
+      } catch (e) {
+        toast(e.message, 'error');
+      }
+    }
+
+    async function createUser() {
+      try {
+        const data = {
+          displayName: document.getElementById('u-name').value,
+          username: document.getElementById('u-username').value,
+          email: document.getElementById('u-email').value,
+          password: document.getElementById('u-password').value,
+        };
+        await api('POST', '/api/users', data);
+        toast(`Created ${data.displayName}`);
+        document.getElementById('u-name').value = '';
+        document.getElementById('u-username').value = '';
+        document.getElementById('u-email').value = '';
+        document.getElementById('u-password').value = '';
+        refreshAll();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function deleteUser(uid) {
+      if (!confirm('Delete this user and all their data?')) return;
+      try {
+        await api('DELETE', `/api/users/${uid}`);
+        toast('User deleted');
+        refreshAll();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function sendRequest() {
+      try {
+        const fromUid = document.getElementById('f-from').value;
+        const toUid = document.getElementById('f-to').value;
+        await api('POST', '/api/friends/request', { fromUid, toUid });
+        toast('Friend request sent');
+        refreshAll();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function acceptRequest() {
+      try {
+        const uid = document.getElementById('f-from').value;
+        const friendId = document.getElementById('f-to').value;
+        await api('POST', '/api/friends/accept', { uid, friendId });
+        toast('Friend request accepted');
+        refreshAll();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function declineRequest() {
+      try {
+        const uid = document.getElementById('f-from').value;
+        const friendId = document.getElementById('f-to').value;
+        await api('POST', '/api/friends/decline', { uid, friendId });
+        toast('Friend removed');
+        refreshAll();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function setAvailable() {
+      try {
+        const uid = document.getElementById('a-user').value;
+        const durationMinutes = parseInt(document.getElementById('a-duration').value);
+        await api('POST', '/api/availability', { uid, durationMinutes });
+        toast('Set available');
+        refreshAll();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function setUnavailable() {
+      try {
+        const uid = document.getElementById('a-user').value;
+        await api('DELETE', `/api/availability/${uid}`);
+        toast('Set unavailable');
+        refreshAll();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function setUnavailableFor(uid) {
+      try {
+        await api('DELETE', `/api/availability/${uid}`);
+        toast('Set unavailable');
+        refreshAll();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    // Initial load
+    refreshAll();
+  </script>
+</body>
+</html>

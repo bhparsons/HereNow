@@ -39,3 +39,17 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Firebase Cloud Functions build output
+functions/lib/
+
+# Development assets (mockups, screenshots)
+assets/mockups/
+screenshots/
+
+# Firebase service account keys
+testbench/service-account-key.json
+secrets/
+
+# Firebase iOS config (contains project-specific info)
+GoogleService-Info.plist
