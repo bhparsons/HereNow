@@ -7,8 +7,9 @@ import {
   Share,
   ScrollView,
   StyleSheet,
+  Dimensions,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigationContainerRef } from 'expo-router';
 import * as Linking from 'expo-linking';
 import * as Clipboard from 'expo-clipboard';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -24,9 +25,17 @@ import { colors } from '../src/theme/tokens';
 
 type Tab = 'share' | 'scan' | 'search';
 
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+
 export default function AddFriendScreen() {
   const router = useRouter();
   const { firebaseUser, userProfile } = useAuth();
+
+  const handleDismiss = () => {
+    if (router.canGoBack()) {
+      router.back();
+    }
+  };
   const [activeTab, setActiveTab] = useState<Tab>('share');
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,7 +102,7 @@ export default function AddFriendScreen() {
     const match = data.match(/friend\/([a-z0-9_]+)/i);
     if (match) {
       setScanned(true);
-      router.back();
+      handleDismiss();
       setTimeout(() => {
         router.push(`/friend/${match[1]}`);
       }, 300);
@@ -205,38 +214,49 @@ export default function AddFriendScreen() {
   );
 
   return (
-    <View className="flex-1 bg-surface">
-      <View className="flex-1 px-5 pb-10 pt-3">
-        {/* Close handle */}
-        <Pressable onPress={() => router.back()} className="self-center mb-3 p-1">
-          <View className="w-9 h-1 rounded-full bg-ink-200" />
-        </Pressable>
-        <Text variant="h2" className="text-center mb-4">Add Friend</Text>
+    <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
+      {/* Backdrop tap to dismiss */}
+      <Pressable
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        onPress={handleDismiss}
+      />
+      {/* Content container at ~70% height */}
+      <View
+        className="bg-surface rounded-t-3xl"
+        style={{ maxHeight: SCREEN_HEIGHT * 0.7, minHeight: SCREEN_HEIGHT * 0.5 }}
+      >
+        <View className="flex-1 px-5 pb-10 pt-3">
+          {/* Close handle */}
+          <Pressable onPress={handleDismiss} className="self-center mb-3 p-1">
+            <View className="w-9 h-1 rounded-full bg-ink-200" />
+          </Pressable>
+          <Text variant="h2" className="text-center mb-4">Add Friend</Text>
 
-        {/* Tab selector */}
-        <View className="flex-row bg-background rounded-2xl p-1 mb-5">
-          {(['share', 'scan', 'search'] as Tab[]).map((tab) => (
-            <Pressable
-              key={tab}
-              className={`flex-1 py-2.5 items-center rounded-xl ${
-                activeTab === tab ? 'bg-surface shadow shadow-black/10' : ''
-              }`}
-              onPress={() => setActiveTab(tab)}
-            >
-              <Text
-                variant="button-small"
-                className={activeTab === tab ? 'text-secondary' : 'text-ink-400'}
+          {/* Tab selector */}
+          <View className="flex-row bg-background rounded-2xl p-1 mb-5">
+            {(['share', 'scan', 'search'] as Tab[]).map((tab) => (
+              <Pressable
+                key={tab}
+                className={`flex-1 py-2.5 items-center rounded-xl ${
+                  activeTab === tab ? 'bg-surface shadow shadow-black/10' : ''
+                }`}
+                onPress={() => setActiveTab(tab)}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+                <Text
+                  variant="button-small"
+                  className={activeTab === tab ? 'text-secondary' : 'text-ink-400'}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
 
-        <View className="flex-1">
-          {activeTab === 'share' && renderShareTab()}
-          {activeTab === 'scan' && renderScanTab()}
-          {activeTab === 'search' && renderSearchTab()}
+          <View className="flex-1">
+            {activeTab === 'share' && renderShareTab()}
+            {activeTab === 'scan' && renderScanTab()}
+            {activeTab === 'search' && renderSearchTab()}
+          </View>
         </View>
       </View>
     </View>

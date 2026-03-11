@@ -19,20 +19,31 @@ export async function setAvailable(
   userId: string,
   durationMinutes: number
 ): Promise<void> {
-  const now = new Date();
-  const availableUntil = new Date(now.getTime() + durationMinutes * 60 * 1000);
+  try {
+    const now = new Date();
+    const availableUntil = new Date(now.getTime() + durationMinutes * 60 * 1000);
 
-  await setDoc(doc(db, 'availability', userId), {
-    isAvailable: true,
-    availableUntil: Timestamp.fromDate(availableUntil),
-    startedAt: Timestamp.fromDate(now),
-    inConversation: false,
-    inConversationWith: null,
-  });
+    await setDoc(doc(db, 'availability', userId), {
+      isAvailable: true,
+      availableUntil: Timestamp.fromDate(availableUntil),
+      startedAt: Timestamp.fromDate(now),
+      inConversation: false,
+      inConversationWith: null,
+    });
+  } catch (error) {
+    throw new Error('Failed to go online. Please try again.');
+  }
 }
 
 export async function setUnavailable(userId: string): Promise<void> {
-  await deleteDoc(doc(db, 'availability', userId));
+  try {
+    const snap = await getDoc(doc(db, 'availability', userId));
+    if (snap.exists()) {
+      await deleteDoc(doc(db, 'availability', userId));
+    }
+  } catch (error) {
+    throw new Error('Failed to go offline. Please try again.');
+  }
 }
 
 export async function getMyAvailability(
