@@ -145,6 +145,21 @@ export async function unsnoozeFriend(
   );
 }
 
+/**
+ * Set notification preference for a specific friend.
+ */
+export async function setNotificationPreference(
+  userId: string,
+  friendId: string,
+  enabled: boolean
+): Promise<void> {
+  await setDoc(
+    doc(db, 'users', userId, 'friends', friendId),
+    { notificationsEnabled: enabled },
+    { merge: true }
+  );
+}
+
 function parseFriendDoc(friendId: string, data: DocumentData): FriendRecord {
   return {
     friendId,
@@ -154,5 +169,6 @@ function parseFriendDoc(friendId: string, data: DocumentData): FriendRecord {
     connectionCount: data.connectionCount || 0,
     frequencyGoal: data.frequencyGoal || null,
     snoozedUntil: data.snoozedUntil?.toDate() || null,
+    notificationsEnabled: data.notificationsEnabled ?? true,
   };
 }
