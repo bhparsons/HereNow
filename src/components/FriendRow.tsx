@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Pressable } from 'react-native';
 import { Avatar } from './Avatar';
 import { Text } from './ui/Text';
+import { colors } from '../theme/tokens';
 
 /** Map tier number to a colored ring for the avatar. */
 function tierToRingColor(tier?: number): string | undefined {
@@ -38,14 +39,30 @@ export function FriendRow({
 
   return (
     <Pressable
-      className="flex-row items-center bg-surface p-3 rounded-2xl mb-1.5"
+      className="flex-row items-center p-3 rounded-2xl mb-1.5"
+      style={{
+        backgroundColor: isOnline ? colors.glass.card : colors.glass.muted,
+        borderWidth: 1,
+        borderColor: isOnline ? 'rgba(16, 185, 129, 0.2)' : colors.glass.cardBorder,
+        borderLeftWidth: isOnline ? 3 : 1,
+        borderLeftColor: isOnline ? colors.available : colors.glass.cardBorder,
+      }}
       onPress={onPress}
       disabled={!onPress}
     >
       <View className="relative">
         <Avatar photoUrl={photoUrl} name={name} size={40} tierRingColor={ringColor} />
         {isOnline && (
-          <View className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-available border-2 border-surface" />
+          <View
+            className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-surface"
+            style={{
+              backgroundColor: colors.available,
+              shadowColor: colors.available,
+              shadowOpacity: 0.6,
+              shadowRadius: 4,
+              shadowOffset: { width: 0, height: 0 },
+            }}
+          />
         )}
       </View>
       <View className="flex-1 ml-3">

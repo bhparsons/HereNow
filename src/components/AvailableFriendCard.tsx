@@ -76,15 +76,26 @@ export function AvailableFriendCard({ friend, tier }: Props) {
 
   return (
     <View
-      className={`bg-surface p-4 rounded-2xl mb-2 shadow shadow-black/5 ${
-        isBusy ? 'opacity-60' : ''
-      }`}
+      className="p-4 rounded-2xl mb-2"
+      style={{
+        backgroundColor: isBusy ? colors.glass.muted : colors.glass.card,
+        borderWidth: 1,
+        borderColor: isBusy
+          ? 'rgba(245, 158, 11, 0.2)'
+          : 'rgba(16, 185, 129, 0.2)',
+        opacity: isBusy ? 0.7 : 1,
+        shadowColor: isBusy ? 'transparent' : colors.available,
+        shadowOpacity: isBusy ? 0 : 0.08,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+      }}
     >
       <View className="flex-row items-center">
         <Avatar
           photoUrl={friend.photoUrl}
           name={friend.displayName}
           size={48}
+          isOnline={!isBusy}
           tierRingColor={ringColor}
         />
         <View className="flex-1 ml-3">
@@ -100,7 +111,7 @@ export function AvailableFriendCard({ friend, tier }: Props) {
             </Text>
           ) : (
             <View>
-              <Text variant="caption" className="text-available mt-0.5">
+              <Text variant="caption" style={{ color: colors.available }} className="mt-0.5">
                 Available for {timeLeft}
               </Text>
               <Text variant="footnote" className="text-ink-300 mt-0.5">
@@ -112,7 +123,16 @@ export function AvailableFriendCard({ friend, tier }: Props) {
         {isBusy ? (
           <Badge variant="busy" label="Busy" />
         ) : (
-          <View className="w-2.5 h-2.5 rounded-full bg-available" />
+          <View
+            className="w-3 h-3 rounded-full"
+            style={{
+              backgroundColor: colors.available,
+              shadowColor: colors.available,
+              shadowOpacity: 0.6,
+              shadowRadius: 6,
+              shadowOffset: { width: 0, height: 0 },
+            }}
+          />
         )}
       </View>
 
