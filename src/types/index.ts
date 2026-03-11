@@ -6,6 +6,11 @@ export interface User {
   createdAt: Date;
   pushToken?: string;
   isPublic?: boolean;
+  contactMethods?: {
+    phone?: string;
+    facetime?: string;
+    whatsapp?: string;
+  };
 }
 
 export type FrequencyGoal = 'daily' | 'weekly' | 'monthly' | 'quarterly';
@@ -23,6 +28,7 @@ export interface FriendRecord {
   // Phase 2: Priority & frequency goals
   frequencyGoal: FrequencyGoal | null;
   snoozedUntil: Date | null;
+  notificationsEnabled?: boolean;
 }
 
 export interface Connection {
