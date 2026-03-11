@@ -50,6 +50,3 @@ screenshots/
 # Firebase service account keys
 testbench/service-account-key.json
 secrets/
-
-# Firebase iOS config (contains project-specific info)
-GoogleService-Info.plist
