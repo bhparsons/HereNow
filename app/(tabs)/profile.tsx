@@ -9,7 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/hooks/useAuth';
-import { updateUserProfile, isUsernameTaken } from '../../src/services/users';
+import { updateUserProfile, isUsernameTaken, uploadProfilePhoto } from '../../src/services/users';
 import { signOut } from '../../src/services/auth';
 import { Avatar } from '../../src/components/Avatar';
 import { Input } from '../../src/components/ui/Input';
@@ -22,6 +22,9 @@ export default function ProfileScreen() {
   const [displayName, setDisplayName] = useState(userProfile?.displayName || '');
   const [username, setUsername] = useState(userProfile?.username || '');
   const [isPublic, setIsPublic] = useState(userProfile?.isPublic ?? true);
+  const [phone, setPhone] = useState(userProfile?.contactMethods?.phone || '');
+  const [facetime, setFacetime] = useState(userProfile?.contactMethods?.facetime || '');
+  const [whatsapp, setWhatsapp] = useState(userProfile?.contactMethods?.whatsapp || '');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -48,10 +51,17 @@ export default function ProfileScreen() {
         }
       }
 
+      // Build contact methods (only include non-empty values)
+      const contactMethods: { phone?: string; facetime?: string; whatsapp?: string } = {};
+      if (phone.trim()) contactMethods.phone = phone.trim();
+      if (facetime.trim()) contactMethods.facetime = facetime.trim();
+      if (whatsapp.trim()) contactMethods.whatsapp = whatsapp.trim();
+
       await updateUserProfile(firebaseUser.uid, {
         displayName: displayName.trim() || 'User',
         username: trimmedUsername,
         isPublic,
+        contactMethods: Object.keys(contactMethods).length > 0 ? contactMethods : undefined,
       });
 
       await refreshProfile();
@@ -72,10 +82,19 @@ export default function ProfileScreen() {
     });
 
     if (!result.canceled && result.assets[0] && firebaseUser) {
-      await updateUserProfile(firebaseUser.uid, {
-        photoUrl: result.assets[0].uri,
-      });
-      await refreshProfile();
+      try {
+        // Upload to Firebase Storage and get download URL
+        const downloadUrl = await uploadProfilePhoto(
+          firebaseUser.uid,
+          result.assets[0].uri
+        );
+        await updateUserProfile(firebaseUser.uid, {
+          photoUrl: downloadUrl,
+        });
+        await refreshProfile();
+      } catch (error: any) {
+        Alert.alert('Error', error.message || 'Failed to upload photo');
+      }
     }
   };
 
@@ -132,13 +151,49 @@ export default function ProfileScreen() {
           />
         </View>
 
+        {/* Contact Methods */}
+        <Text variant="section-header" className="mt-6 mb-2">
+          Contact Methods
+        </Text>
+        <Text variant="footnote" className="text-ink-300 mb-3">
+          Let friends call you directly when you are online
+        </Text>
+
+        <Input
+          label="Phone Number"
+          placeholder="+1234567890"
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+          className="mb-3"
+        />
+
+        <Input
+          label="FaceTime"
+          placeholder="email or phone"
+          value={facetime}
+          onChangeText={setFacetime}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          className="mb-3"
+        />
+
+        <Input
+          label="WhatsApp Number"
+          placeholder="+1234567890"
+          value={whatsapp}
+          onChangeText={setWhatsapp}
+          keyboardType="phone-pad"
+          className="mb-4"
+        />
+
         <Button
           variant="primary"
           label={saving ? 'Saving...' : 'Save Changes'}
           onPress={handleSave}
           disabled={saving}
           fullWidth
-          className="mt-8"
+          className="mt-4"
         />
 
         <Pressable className="mt-6 items-center py-3" onPress={handleSignOut}>

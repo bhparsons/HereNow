@@ -31,7 +31,7 @@ import { Text } from '../../src/components/ui/Text';
 import { IconButton } from '../../src/components/ui/IconButton';
 import { Badge } from '../../src/components/ui/Badge';
 import { formatTimeRemaining, formatLastConnected } from '../../src/utils/time';
-import { sortByPriority } from '../../src/utils/priority';
+import { sortByPriority, assignTiers } from '../../src/utils/priority';
 import { QUICK_DURATIONS } from '../../src/constants';
 import { FriendRecord } from '../../src/types';
 import { colors } from '../../src/theme/tokens';
@@ -65,9 +65,21 @@ export default function HomeScreen() {
 
   const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [showRequestsSheet, setShowRequestsSheet] = useState(false);
-  const [selectedFriend, setSelectedFriend] = useState<FriendRecord | null>(null);
+  const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Derive selectedFriend from live acceptedFriends list to avoid stale snapshots
+  const selectedFriend = useMemo(
+    () => (selectedFriendId ? acceptedFriends.find((f) => f.friendId === selectedFriendId) ?? null : null),
+    [selectedFriendId, acceptedFriends]
+  );
   const [allFriendsExpanded, setAllFriendsExpanded] = useState(false);
+
+  // Compute tier assignments for priority ranking
+  const tierMap = useMemo(
+    () => assignTiers(acceptedFriends),
+    [acceptedFriends]
+  );
 
   // Pulsing animation for online dot
   const pulseOpacity = useSharedValue(1);
@@ -275,7 +287,11 @@ export default function HomeScreen() {
               keyboardShouldPersistTaps="handled"
             >
               {filteredAvailableFriends.map((friend) => (
-                <AvailableFriendCard key={friend.userId} friend={friend} />
+                <AvailableFriendCard
+                  key={friend.userId}
+                  friend={friend}
+                  tier={tierMap.get(friend.userId)}
+                />
               ))}
 
               {filteredAvailableFriends.length === 0 && !query && (
@@ -317,7 +333,8 @@ export default function HomeScreen() {
                       photoUrl={profile?.photoUrl}
                       lastConnectedText={getLastConnectedText(friend)}
                       isOnline={onlineFriendIds.has(friend.friendId)}
-                      onPress={() => setSelectedFriend(friend)}
+                      tier={tierMap.get(friend.friendId)}
+                      onPress={() => setSelectedFriendId(friend.friendId)}
                     />
                   );
                 })}
@@ -403,7 +420,8 @@ export default function HomeScreen() {
                     photoUrl={profile?.photoUrl}
                     lastConnectedText={getLastConnectedText(friend)}
                     isOnline={onlineFriendIds.has(friend.friendId)}
-                    onPress={() => setSelectedFriend(friend)}
+                    tier={tierMap.get(friend.friendId)}
+                    onPress={() => setSelectedFriendId(friend.friendId)}
                   />
                 );
               })}
@@ -458,7 +476,7 @@ export default function HomeScreen() {
       {selectedFriend && firebaseUser && (
         <FriendSettingsSheet
           visible={!!selectedFriend}
-          onClose={() => setSelectedFriend(null)}
+          onClose={() => setSelectedFriendId(null)}
           friend={selectedFriend}
           profile={friendProfiles.get(selectedFriend.friendId)}
           currentUserId={firebaseUser.uid}
