@@ -63,6 +63,12 @@ export interface AvailableFriend {
   tier?: number;
   // Phase 5: Conversation status
   inConversation?: boolean;
+  // Phase 6: Contact methods for call initiation
+  contactMethods?: {
+    phone?: string;
+    facetime?: string;
+    whatsapp?: string;
+  };
 }
 
 export type DurationOption = {

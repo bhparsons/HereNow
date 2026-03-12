@@ -9,6 +9,12 @@ import {
   getDocs,
   serverTimestamp,
 } from 'firebase/firestore';
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+} from 'firebase/storage';
 import { db } from '../config/firebase';
 import { User } from '../types';
 
@@ -37,12 +43,13 @@ export async function getUserProfile(uid: string): Promise<User | null> {
     isPublic: data.isPublic ?? true,
     createdAt: data.createdAt?.toDate() || new Date(),
     pushToken: data.pushToken,
+    contactMethods: data.contactMethods,
   };
 }
 
 export async function updateUserProfile(
   uid: string,
-  data: Partial<Pick<User, 'displayName' | 'username' | 'photoUrl' | 'pushToken' | 'isPublic'>>
+  data: Partial<Pick<User, 'displayName' | 'username' | 'photoUrl' | 'pushToken' | 'isPublic' | 'contactMethods'>>
 ): Promise<void> {
   await setDoc(doc(db, 'users', uid), data, { merge: true });
 }
@@ -75,5 +82,25 @@ export async function findUserByUsername(
     photoUrl: data.photoUrl,
     isPublic,
     createdAt: data.createdAt?.toDate() || new Date(),
+    contactMethods: data.contactMethods,
   };
+}
+
+/**
+ * Upload a profile photo to Firebase Storage and return the download URL.
+ */
+export async function uploadProfilePhoto(
+  userId: string,
+  uri: string
+): Promise<string> {
+  const storage = getStorage();
+  const storageRef = ref(storage, `profile-photos/${userId}`);
+
+  // Fetch the image from the local URI and convert to a blob
+  const response = await fetch(uri);
+  const blob = await response.blob();
+
+  await uploadBytes(storageRef, blob);
+  const downloadUrl = await getDownloadURL(storageRef);
+  return downloadUrl;
 }
