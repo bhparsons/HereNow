@@ -17,10 +17,11 @@ import { createUserProfile, getUserProfile } from './users';
 let GoogleSignin: typeof import('@react-native-google-signin/google-signin').GoogleSignin | null = null;
 try {
   GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
-  // TODO: Replace with Web Client ID from Google Cloud Console → Credentials → OAuth 2.0 Client IDs → "Web client (auto created by Google Service)"
-  // NOT the iOS client ID from GoogleService-Info.plist — it must be the *web* client ID.
+  // webClientId: Web Client ID from Google Cloud Console → Credentials → OAuth 2.0 Client IDs
+  // iosClientId: iOS Client ID from GoogleService-Info.plist (fallback if plist lookup fails)
   GoogleSignin?.configure({
     webClientId: '146322120768-47sourlsopevn2vq0furnl36khr74r99.apps.googleusercontent.com',
+    iosClientId: '146322120768-47sourlsopevn2vq0furnl36khr74r99.apps.googleusercontent.com',
   });
 } catch {
   // Native module not available (e.g. Expo Go) — Google Sign-In will be unavailable
