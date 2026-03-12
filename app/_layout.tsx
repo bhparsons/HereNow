@@ -13,7 +13,7 @@ export default function RootLayout() {
           presentation: 'transparentModal',
           headerShown: false,
           animation: 'slide_from_bottom',
-          contentStyle: { backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+          contentStyle: { backgroundColor: 'rgba(0,0,0,0.4)' },
         }} />
       </Stack>
     </AuthProvider>

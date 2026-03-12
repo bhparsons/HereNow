@@ -6,6 +6,7 @@ import {
   Alert,
   Share,
   ScrollView,
+  StyleSheet,
   useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -212,9 +213,9 @@ export default function AddFriendScreen() {
   );
 
   return (
-    <View className="flex-1">
+    <View className="flex-1" style={{ justifyContent: 'flex-end' }}>
       {/* Backdrop — tap to dismiss */}
-      <Pressable className="flex-1" onPress={handleDismiss} />
+      <Pressable style={StyleSheet.absoluteFill} onPress={handleDismiss} />
 
       {/* Sheet content */}
       <View className="bg-surface rounded-t-3xl px-5 pb-10 pt-3" style={{ maxHeight: screenHeight * 0.75 }}>
