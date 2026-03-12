@@ -162,6 +162,14 @@ export const onAvailabilityCreated = onDocumentCreated(
         const messages: ExpoPushMessage[] = [];
 
         for (const friendId of tierFriendIds) {
+          // Check per-friend notification preference
+          const friendRecord = friendDataList.find((f) => f.friendId === friendId);
+          const friendFriendDoc = await db
+            .doc(`users/${friendId}/friends/${userId}`)
+            .get();
+          const friendFriendData = friendFriendDoc.data();
+          if (friendFriendData?.notificationsEnabled === false) continue;
+
           const friendUserDoc = await db.doc(`users/${friendId}`).get();
           const friendData = friendUserDoc.data();
           if (!friendData?.pushToken) continue;
