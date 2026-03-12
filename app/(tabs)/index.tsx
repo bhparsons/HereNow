@@ -15,6 +15,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import NetInfo from '@react-native-community/netinfo';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/hooks/useAuth';
@@ -25,11 +26,11 @@ import { AvailableFriendCard } from '../../src/components/AvailableFriendCard';
 import { FriendRow } from '../../src/components/FriendRow';
 import { FriendRequestsSheet } from '../../src/components/FriendRequestsSheet';
 import { FriendSettingsSheet } from '../../src/components/FriendSettingsSheet';
+import { Logo } from '../../src/components/Logo';
 import { Button } from '../../src/components/ui/Button';
 import { Chip } from '../../src/components/ui/Chip';
 import { Text } from '../../src/components/ui/Text';
 import { IconButton } from '../../src/components/ui/IconButton';
-import { Badge } from '../../src/components/ui/Badge';
 import { formatTimeRemaining, formatLastConnected } from '../../src/utils/time';
 import { sortByPriority, assignTiers } from '../../src/utils/priority';
 import { QUICK_DURATIONS } from '../../src/constants';
@@ -74,6 +75,15 @@ export default function HomeScreen() {
     [selectedFriendId, acceptedFriends]
   );
   const [allFriendsExpanded, setAllFriendsExpanded] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
+
+  // Network connectivity listener
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsConnected(state.isConnected ?? true);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Compute tier assignments for priority ranking
   const tierMap = useMemo(
@@ -174,19 +184,55 @@ export default function HomeScreen() {
     setShowDurationPicker(true);
   };
 
-  return (
-    <SafeAreaView
-      className={`flex-1 ${
-        isAvailable && !inConversation
-          ? 'bg-available/10'
-          : isAvailable && inConversation
-            ? 'bg-busy/10'
-            : 'bg-background'
-      }`}
+  // Search bar component (reused in both states)
+  const SearchBar = () => (
+    <View
+      className="flex-row items-center mb-3 rounded-4xl px-3.5 py-2.5"
+      style={{
+        backgroundColor: colors.glass.card,
+        borderWidth: 1,
+        borderColor: colors.glass.cardBorder,
+      }}
     >
+      <Ionicons name="search" size={18} color={colors.ink[300]} style={{ marginRight: 8 }} />
+      <TextInput
+        className="flex-1 text-body text-ink p-0"
+        placeholder="Search friends..."
+        placeholderTextColor={colors.ink[300]}
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        autoCorrect={false}
+      />
+      {searchQuery.length > 0 && (
+        <Pressable onPress={() => setSearchQuery('')}>
+          <Ionicons name="close-circle" size={18} color={colors.ink[300]} />
+        </Pressable>
+      )}
+    </View>
+  );
+
+  return (
+    <SafeAreaView className="flex-1 bg-background">
+      {/* Network offline banner */}
+      {!isConnected && (
+        <View
+          className="mx-4 mb-2 px-4 py-2 rounded-2xl flex-row items-center justify-center"
+          style={{
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            borderWidth: 1,
+            borderColor: 'rgba(239, 68, 68, 0.2)',
+          }}
+        >
+          <Ionicons name="cloud-offline-outline" size={16} color={colors.error} style={{ marginRight: 6 }} />
+          <Text variant="caption" style={{ color: colors.error }}>
+            No connection
+          </Text>
+        </View>
+      )}
+
       {/* Header */}
       <View className="flex-row justify-between items-center px-4 py-2">
-        <Text variant="h1">HereNow</Text>
+        <Logo />
         <View className="relative">
           <IconButton
             icon={<Ionicons name="notifications-outline" size={24} color={colors.ink.DEFAULT} />}
@@ -198,55 +244,70 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {isAvailable ? (
-        // ─── ONLINE STATE ───
-        <View className="flex-1 px-4">
-          {/* Online Status Banner */}
+      {/* Status Bar (compact, replaces full-background tinting) */}
+      {isAvailable && (
+        <View
+          className="mx-4 mb-3 rounded-2xl overflow-hidden"
+          style={{
+            backgroundColor: inConversation
+              ? 'rgba(245, 158, 11, 0.12)'
+              : 'rgba(16, 185, 129, 0.12)',
+            borderWidth: 1,
+            borderColor: inConversation
+              ? 'rgba(245, 158, 11, 0.25)'
+              : 'rgba(16, 185, 129, 0.25)',
+          }}
+        >
+          {/* Accent stripe */}
           <View
-            className={`rounded-2xl p-3.5 mb-4 ${
-              inConversation ? 'bg-busy/15' : 'bg-available/15'
-            }`}
-          >
+            style={{
+              height: 3,
+              backgroundColor: inConversation ? colors.busy : colors.available,
+            }}
+          />
+          <View className="p-3.5">
             <View className="flex-row items-center justify-between mb-1">
               <View className="flex-row items-center">
                 <Animated.View
-                  className={`w-2.5 h-2.5 rounded-full mr-2 ${
-                    inConversation ? 'bg-busy' : 'bg-available'
-                  }`}
-                  style={pulseStyle}
+                  className="w-2.5 h-2.5 rounded-full mr-2"
+                  style={[
+                    { backgroundColor: inConversation ? colors.busy : colors.available },
+                    pulseStyle,
+                  ]}
                 />
                 <Text
                   variant="h3"
-                  className={inConversation ? 'text-busy' : 'text-available'}
+                  style={{ color: inConversation ? colors.busy : colors.available }}
                 >
                   {inConversation ? 'In a Conversation' : "You're Online"}
                 </Text>
               </View>
               <Text
                 variant="h2"
-                className={inConversation ? 'text-busy' : 'text-available'}
+                style={{ color: inConversation ? colors.busy : colors.available }}
               >
                 {formatTimeRemaining(timeRemaining)}
               </Text>
             </View>
             <View className="flex-row justify-between gap-2.5 mt-1.5">
               <Pressable
-                className={`px-3.5 py-2 rounded-full border-3 ${
-                  inConversation
-                    ? 'bg-busy border-busy'
-                    : 'bg-transparent border-busy'
-                }`}
+                className="px-3.5 py-2 rounded-full border-3"
+                style={{
+                  backgroundColor: inConversation ? colors.busy : 'transparent',
+                  borderColor: colors.busy,
+                }}
                 onPress={() => toggleInConversation(!inConversation)}
               >
                 <Text
                   variant="button-small"
-                  className={inConversation ? 'text-white' : 'text-busy'}
+                  style={{ color: inConversation ? '#FFFFFF' : colors.busy }}
                 >
                   {inConversation ? 'End Conversation' : 'In a Conversation'}
                 </Text>
               </Pressable>
               <Pressable
-                className="px-3.5 py-2 rounded-full border-3 border-ink-200"
+                className="px-3.5 py-2 rounded-full border-3"
+                style={{ borderColor: colors.ink[200] }}
                 onPress={goUnavailable}
               >
                 <Text variant="button-small" className="text-ink-400">
@@ -255,30 +316,31 @@ export default function HomeScreen() {
               </Pressable>
             </View>
           </View>
+        </View>
+      )}
 
-          {/* Friends Section */}
+      {isAvailable ? (
+        // ─── ONLINE STATE ───
+        <View className="flex-1 px-4">
+          {/* Available Now Section */}
           <View className="flex-1">
-            <Text variant="section-header" className="mt-2 mb-2">
-              AVAILABLE NOW
-            </Text>
-
-            {/* Search Bar */}
-            <View className="flex-row items-center bg-surface mb-3 rounded-4xl px-3.5 py-2.5">
-              <Ionicons name="search" size={18} color={colors.ink[300]} style={{ marginRight: 8 }} />
-              <TextInput
-                className="flex-1 text-body text-ink p-0"
-                placeholder="Search friends..."
-                placeholderTextColor={colors.ink[300]}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoCorrect={false}
-              />
-              {searchQuery.length > 0 && (
-                <Pressable onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={18} color={colors.ink[300]} />
-                </Pressable>
+            <View className="flex-row items-center mb-2">
+              <Text variant="section-header">
+                AVAILABLE NOW
+              </Text>
+              {filteredAvailableFriends.length > 0 && (
+                <View
+                  className="ml-2 px-2 py-0.5 rounded-full"
+                  style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)' }}
+                >
+                  <Text variant="footnote" style={{ color: colors.available }}>
+                    {filteredAvailableFriends.length}
+                  </Text>
+                </View>
               )}
             </View>
+
+            <SearchBar />
 
             <ScrollView
               className="flex-1"
@@ -310,12 +372,19 @@ export default function HomeScreen() {
                 </View>
               )}
 
-              {/* All Friends (collapsible) */}
+              {/* Offline Friends Section */}
               <Pressable
-                className="flex-row justify-between items-center mt-4 mb-2"
+                className="flex-row justify-between items-center mt-5 mb-2"
                 onPress={() => setAllFriendsExpanded(!allFriendsExpanded)}
               >
-                <Text variant="section-header">ALL FRIENDS</Text>
+                <View className="flex-row items-center">
+                  <Text variant="section-header">FRIENDS</Text>
+                  <View className="ml-2 px-2 py-0.5 rounded-full bg-ink-100">
+                    <Text variant="footnote" className="text-ink-400">
+                      {filteredOfflineFriends.length}
+                    </Text>
+                  </View>
+                </View>
                 <Ionicons
                   name={allFriendsExpanded ? 'chevron-up' : 'chevron-down'}
                   size={18}
@@ -362,7 +431,19 @@ export default function HomeScreen() {
           {/* Go Online Button */}
           <AnimatedPressable
             style={goOnlineAnimStyle}
-            className="bg-primary rounded-2xl py-4 items-center mb-2.5 border-3 border-primary-700 shadow-lg shadow-primary/25"
+            className="rounded-2xl py-4 items-center mb-2.5 shadow-lg"
+            style={[
+              goOnlineAnimStyle,
+              {
+                backgroundColor: colors.primary.DEFAULT,
+                borderWidth: 3,
+                borderColor: colors.primary[700],
+                shadowColor: colors.primary.DEFAULT,
+                shadowOpacity: 0.25,
+                shadowRadius: 12,
+                shadowOffset: { width: 0, height: 4 },
+              },
+            ]}
             onPress={handleGoOnlinePress}
           >
             <Text variant="h2" className="text-white">
@@ -387,23 +468,7 @@ export default function HomeScreen() {
               {query ? 'MATCHING FRIENDS' : 'FRIENDS'}
             </Text>
 
-            {/* Search Bar */}
-            <View className="flex-row items-center bg-surface mb-3 rounded-4xl px-3.5 py-2.5">
-              <Ionicons name="search" size={18} color={colors.ink[300]} style={{ marginRight: 8 }} />
-              <TextInput
-                className="flex-1 text-body text-ink p-0"
-                placeholder="Search friends..."
-                placeholderTextColor={colors.ink[300]}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoCorrect={false}
-              />
-              {searchQuery.length > 0 && (
-                <Pressable onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={18} color={colors.ink[300]} />
-                </Pressable>
-              )}
-            </View>
+            <SearchBar />
 
             <ScrollView
               className="flex-1"
