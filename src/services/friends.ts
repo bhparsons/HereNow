@@ -28,57 +28,75 @@ export async function sendFriendRequest(
     throw new Error('Friend request already exists');
   }
 
-  // Set on sender side
-  await setDoc(doc(db, 'users', currentUserId, 'friends', targetUserId), {
-    status: 'pending_sent',
-    createdAt: serverTimestamp(),
-    lastConnectionAt: null,
-    connectionCount: 0,
-    frequencyGoal: null,
-    snoozedUntil: null,
-  });
+  try {
+    // Set on sender side
+    await setDoc(doc(db, 'users', currentUserId, 'friends', targetUserId), {
+      status: 'pending_sent',
+      createdAt: serverTimestamp(),
+      lastConnectionAt: null,
+      connectionCount: 0,
+      frequencyGoal: null,
+      snoozedUntil: null,
+    });
 
-  // Set on receiver side
-  await setDoc(doc(db, 'users', targetUserId, 'friends', currentUserId), {
-    status: 'pending_received',
-    createdAt: serverTimestamp(),
-    lastConnectionAt: null,
-    connectionCount: 0,
-    frequencyGoal: null,
-    snoozedUntil: null,
-  });
+    // Set on receiver side
+    await setDoc(doc(db, 'users', targetUserId, 'friends', currentUserId), {
+      status: 'pending_received',
+      createdAt: serverTimestamp(),
+      lastConnectionAt: null,
+      connectionCount: 0,
+      frequencyGoal: null,
+      snoozedUntil: null,
+    });
+  } catch (error) {
+    // Clean up sender side if receiver side failed
+    await deleteDoc(doc(db, 'users', currentUserId, 'friends', targetUserId)).catch(() => {});
+    throw new Error('Failed to send friend request. Please try again.');
+  }
 }
 
 export async function acceptFriendRequest(
   currentUserId: string,
   friendId: string
 ): Promise<void> {
-  await setDoc(
-    doc(db, 'users', currentUserId, 'friends', friendId),
-    { status: 'accepted' },
-    { merge: true }
-  );
-  await setDoc(
-    doc(db, 'users', friendId, 'friends', currentUserId),
-    { status: 'accepted' },
-    { merge: true }
-  );
+  try {
+    await setDoc(
+      doc(db, 'users', currentUserId, 'friends', friendId),
+      { status: 'accepted' },
+      { merge: true }
+    );
+    await setDoc(
+      doc(db, 'users', friendId, 'friends', currentUserId),
+      { status: 'accepted' },
+      { merge: true }
+    );
+  } catch (error) {
+    throw new Error('Failed to accept friend request. Please try again.');
+  }
 }
 
 export async function declineFriendRequest(
   currentUserId: string,
   friendId: string
 ): Promise<void> {
-  await deleteDoc(doc(db, 'users', currentUserId, 'friends', friendId));
-  await deleteDoc(doc(db, 'users', friendId, 'friends', currentUserId));
+  try {
+    await deleteDoc(doc(db, 'users', currentUserId, 'friends', friendId));
+    await deleteDoc(doc(db, 'users', friendId, 'friends', currentUserId));
+  } catch (error) {
+    throw new Error('Failed to decline friend request. Please try again.');
+  }
 }
 
 export async function removeFriend(
   currentUserId: string,
   friendId: string
 ): Promise<void> {
-  await deleteDoc(doc(db, 'users', currentUserId, 'friends', friendId));
-  await deleteDoc(doc(db, 'users', friendId, 'friends', currentUserId));
+  try {
+    await deleteDoc(doc(db, 'users', currentUserId, 'friends', friendId));
+    await deleteDoc(doc(db, 'users', friendId, 'friends', currentUserId));
+  } catch (error) {
+    throw new Error('Failed to remove friend. Please try again.');
+  }
 }
 
 export async function getFriends(userId: string): Promise<FriendRecord[]> {
@@ -97,6 +115,9 @@ export function subscribeFriends(
         parseFriendDoc(d.id, d.data())
       );
       callback(friends);
+    },
+    (error) => {
+      console.warn('Friends listener error:', error.code);
     }
   );
 }

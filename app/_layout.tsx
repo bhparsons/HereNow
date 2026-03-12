@@ -9,7 +9,12 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="login" />
         <Stack.Screen name="setup-profile" />
-        <Stack.Screen name="add-friend" options={{ presentation: 'modal', headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="add-friend" options={{
+          presentation: 'transparentModal',
+          headerShown: false,
+          animation: 'slide_from_bottom',
+          contentStyle: { backgroundColor: 'rgba(0,0,0,0.4)' },
+        }} />
       </Stack>
     </AuthProvider>
   );
