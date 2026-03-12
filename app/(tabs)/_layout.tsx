@@ -1,8 +1,21 @@
-import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
+import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../src/hooks/useAuth';
 import { colors } from '../../src/theme/tokens';
 
 export default function TabLayout() {
+  const { firebaseUser, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !firebaseUser) {
+      router.replace('/login');
+    }
+  }, [loading, firebaseUser]);
+
+  if (loading || !firebaseUser) return null;
+
   return (
     <Tabs
       screenOptions={{

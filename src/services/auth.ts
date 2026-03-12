@@ -17,9 +17,10 @@ import { createUserProfile, getUserProfile } from './users';
 let GoogleSignin: typeof import('@react-native-google-signin/google-signin').GoogleSignin | null = null;
 try {
   GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
-  // TODO: Replace with your Google Web Client ID from Firebase Console → Authentication → Sign-in method → Google
+  // TODO: Replace with Web Client ID from Google Cloud Console → Credentials → OAuth 2.0 Client IDs → "Web client (auto created by Google Service)"
+  // NOT the iOS client ID from GoogleService-Info.plist — it must be the *web* client ID.
   GoogleSignin?.configure({
-    webClientId: 'YOUR_GOOGLE_WEB_CLIENT_ID',
+    webClientId: '146322120768-47sourlsopevn2vq0furnl36khr74r99.apps.googleusercontent.com',
   });
 } catch {
   // Native module not available (e.g. Expo Go) — Google Sign-In will be unavailable
@@ -49,7 +50,12 @@ export async function signInWithApple(): Promise<FirebaseUser> {
     rawNonce: nonce,
   });
 
-  const result = await signInWithCredential(auth, oauthCredential);
+  let result;
+  try {
+    result = await signInWithCredential(auth, oauthCredential);
+  } catch (error) {
+    handleAuthError(error);
+  }
 
   // Create profile if new user
   const existing = await getUserProfile(result.user.uid);
@@ -80,7 +86,13 @@ export async function signInWithGoogle(): Promise<FirebaseUser> {
   }
 
   const credential = GoogleAuthProvider.credential(response.data.idToken);
-  const result = await signInWithCredential(auth, credential);
+
+  let result;
+  try {
+    result = await signInWithCredential(auth, credential);
+  } catch (error) {
+    handleAuthError(error);
+  }
 
   // Create profile if new user
   const existing = await getUserProfile(result.user.uid);
@@ -119,4 +131,17 @@ export async function signInWithEmail(
 
 export async function signOut(): Promise<void> {
   await firebaseSignOut(auth);
+}
+
+/**
+ * Wrap auth errors to provide user-friendly messages for account linking conflicts.
+ */
+function handleAuthError(error: any): never {
+  if (error?.code === 'auth/account-exists-with-different-credential') {
+    throw new Error(
+      'An account already exists with the same email address but a different sign-in method. ' +
+      'Try signing in with the method you used originally (Apple, Google, or email).'
+    );
+  }
+  throw error;
 }

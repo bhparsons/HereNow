@@ -115,6 +115,9 @@ export function subscribeFriends(
         parseFriendDoc(d.id, d.data())
       );
       callback(friends);
+    },
+    (error) => {
+      console.warn('Friends listener error:', error.code);
     }
   );
 }

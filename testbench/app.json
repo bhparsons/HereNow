@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "73416f3e-26b3-4a36-81ee-30c994b15e2e"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.bparsons.herenowtestbench",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}

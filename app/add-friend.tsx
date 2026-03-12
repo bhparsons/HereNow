@@ -6,7 +6,7 @@ import {
   Alert,
   Share,
   ScrollView,
-  StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
@@ -26,6 +26,7 @@ type Tab = 'share' | 'scan' | 'search';
 
 export default function AddFriendScreen() {
   const router = useRouter();
+  const { height: screenHeight } = useWindowDimensions();
   const { firebaseUser, userProfile } = useAuth();
 
   const handleDismiss = () => {
@@ -111,8 +112,8 @@ export default function AddFriendScreen() {
   }, [activeTab]);
 
   const renderShareTab = () => (
-    <View className="flex-1 justify-between items-center">
-      <View className="flex-1 justify-center items-center">
+    <View className="items-center">
+      <View className="justify-center items-center py-4">
         {userProfile?.username && (
           <View className="p-4 bg-surface rounded-2xl mb-3 shadow shadow-black/5">
             <QRCode value={deepLink} size={160} color={colors.ink.DEFAULT} backgroundColor={colors.surface} />
@@ -133,7 +134,7 @@ export default function AddFriendScreen() {
   const renderScanTab = () => {
     if (!permission?.granted) {
       return (
-        <View className="flex-1 items-center justify-center">
+        <View className="items-center justify-center py-10">
           <Text variant="body" className="text-ink-400 text-center mb-4">
             Camera access is needed to scan QR codes
           </Text>
@@ -143,9 +144,9 @@ export default function AddFriendScreen() {
     }
 
     return (
-      <View className="flex-1 rounded-2xl overflow-hidden relative">
+      <View className="rounded-2xl overflow-hidden" style={{ width: '100%', aspectRatio: 1 }}>
         <CameraView
-          style={StyleSheet.absoluteFill}
+          style={{ flex: 1 }}
           facing="back"
           barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
           onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
@@ -160,7 +161,7 @@ export default function AddFriendScreen() {
   };
 
   const renderSearchTab = () => (
-    <View className="flex-1">
+    <View>
       <View className="flex-row gap-2">
         <TextInput
           className="flex-1 bg-background rounded-2xl px-4 py-3.5 text-body text-ink border-3 border-ink-100"
@@ -182,14 +183,12 @@ export default function AddFriendScreen() {
       </View>
 
       <ScrollView
-        className="flex-1 mt-3"
-        contentContainerStyle={
-          searchResult ? { flexGrow: 1 } : { flexGrow: 1, justifyContent: 'center', alignItems: 'center' }
-        }
+        className="mt-3"
+        contentContainerStyle={{ paddingBottom: 16 }}
         showsVerticalScrollIndicator={false}
       >
         {searchResult ? (
-          <View className="flex-row items-center bg-background p-3.5 rounded-2xl mt-3 w-full">
+          <View className="flex-row items-center bg-background p-3.5 rounded-2xl w-full">
             <Avatar photoUrl={searchResult.photoUrl} name={searchResult.displayName} size={48} />
             <View className="flex-1 ml-3">
               <Text variant="body-medium">{searchResult.displayName}</Text>
@@ -202,17 +201,23 @@ export default function AddFriendScreen() {
             )}
           </View>
         ) : (
-          <Text variant="caption" className="text-ink-300 text-center">
-            Search results will appear here
-          </Text>
+          <View className="items-center py-10">
+            <Text variant="caption" className="text-ink-300 text-center">
+              Search results will appear here
+            </Text>
+          </View>
         )}
       </ScrollView>
     </View>
   );
 
   return (
-    <View className="flex-1 bg-surface">
-      <View className="flex-1 px-5 pb-10 pt-3">
+    <View className="flex-1">
+      {/* Backdrop — tap to dismiss */}
+      <Pressable className="flex-1" onPress={handleDismiss} />
+
+      {/* Sheet content */}
+      <View className="bg-surface rounded-t-3xl px-5 pb-10 pt-3" style={{ maxHeight: screenHeight * 0.75 }}>
         {/* Close handle */}
         <Pressable onPress={handleDismiss} className="self-center mb-3 p-1">
           <View className="w-9 h-1 rounded-full bg-ink-200" />
@@ -239,11 +244,9 @@ export default function AddFriendScreen() {
           ))}
         </View>
 
-        <View className="flex-1">
-          {activeTab === 'share' && renderShareTab()}
-          {activeTab === 'scan' && renderScanTab()}
-          {activeTab === 'search' && renderSearchTab()}
-        </View>
+        {activeTab === 'share' && renderShareTab()}
+        {activeTab === 'scan' && renderScanTab()}
+        {activeTab === 'search' && renderSearchTab()}
       </View>
     </View>
   );

@@ -67,21 +67,28 @@ export function subscribeToMyAvailability(
   userId: string,
   callback: (availability: Availability | null) => void
 ): () => void {
-  return onSnapshot(doc(db, 'availability', userId), (snap) => {
-    if (!snap.exists()) {
-      callback(null);
-      return;
-    }
-    const data = snap.data();
-    const availableUntil = data.availableUntil.toDate();
+  return onSnapshot(
+    doc(db, 'availability', userId),
+    (snap) => {
+      if (!snap.exists()) {
+        callback(null);
+        return;
+      }
+      const data = snap.data();
+      const availableUntil = data.availableUntil.toDate();
 
-    if (availableUntil <= new Date()) {
-      callback(null);
-      return;
-    }
+      if (availableUntil <= new Date()) {
+        callback(null);
+        return;
+      }
 
-    callback(parseAvailabilityDoc(userId, data));
-  });
+      callback(parseAvailabilityDoc(userId, data));
+    },
+    (error) => {
+      console.warn('Availability listener error:', error.code);
+      callback(null);
+    }
+  );
 }
 
 export async function getAvailableFriends(
@@ -147,21 +154,27 @@ export function subscribeToAvailableFriends(
       collection(db, 'availability'),
       where(documentId(), 'in', batch)
     );
-    const unsub = onSnapshot(q, (snap) => {
-      const now = new Date();
-      // Clear entries for this batch
-      for (const id of batch) {
-        availabilityMap.delete(id);
-      }
-      for (const d of snap.docs) {
-        const data = d.data();
-        const availableUntil = data.availableUntil.toDate();
-        if (availableUntil > now) {
-          availabilityMap.set(d.id, parseAvailabilityDoc(d.id, data));
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const now = new Date();
+        // Clear entries for this batch
+        for (const id of batch) {
+          availabilityMap.delete(id);
         }
+        for (const d of snap.docs) {
+          const data = d.data();
+          const availableUntil = data.availableUntil.toDate();
+          if (availableUntil > now) {
+            availabilityMap.set(d.id, parseAvailabilityDoc(d.id, data));
+          }
+        }
+        callback(new Map(availabilityMap));
+      },
+      (error) => {
+        console.warn('Available friends listener error:', error.code);
       }
-      callback(new Map(availabilityMap));
-    });
+    );
     unsubscribes.push(unsub);
   }
 

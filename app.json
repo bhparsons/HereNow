@@ -27,7 +27,6 @@
         "aps-environment": "production"
       },
       "infoPlist": {
-        "NSContactsUsageDescription": "HereNow uses your contacts to help you find friends who are already on the app.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -40,9 +39,6 @@
       },
       "package": "com.bhparsons.herenow",
       "permissions": [
-        "android.permission.READ_CONTACTS",
-        "android.permission.WRITE_CONTACTS",
-        "android.permission.RECORD_AUDIO",
         "android.permission.CAMERA"
       ]
     },
@@ -52,7 +48,6 @@
     "plugins": [
       "expo-router",
       "expo-apple-authentication",
-      "expo-contacts",
       [
         "expo-notifications",
         {
