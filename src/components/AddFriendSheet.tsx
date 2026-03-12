@@ -6,35 +6,33 @@ import {
   Alert,
   Share,
   ScrollView,
+  Modal,
   StyleSheet,
-  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import * as Clipboard from 'expo-clipboard';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import QRCode from 'react-native-qrcode-svg';
-import { useAuth } from '../src/hooks/useAuth';
-import { findUserByUsername } from '../src/services/users';
-import { sendFriendRequest } from '../src/services/friends';
-import { Avatar } from '../src/components/Avatar';
-import { Button } from '../src/components/ui/Button';
-import { Text } from '../src/components/ui/Text';
-import { User } from '../src/types';
-import { colors } from '../src/theme/tokens';
+import { useAuth } from '../hooks/useAuth';
+import { findUserByUsername } from '../services/users';
+import { sendFriendRequest } from '../services/friends';
+import { Avatar } from './Avatar';
+import { Button } from './ui/Button';
+import { Text } from './ui/Text';
+import { User } from '../types';
+import { colors } from '../theme/tokens';
 
 type Tab = 'share' | 'scan' | 'search';
 
-export default function AddFriendScreen() {
-  const router = useRouter();
-  const { height: screenHeight } = useWindowDimensions();
-  const { firebaseUser, userProfile } = useAuth();
+interface Props {
+  visible: boolean;
+  onClose: () => void;
+}
 
-  const handleDismiss = () => {
-    if (router.canGoBack()) {
-      router.back();
-    }
-  };
+export function AddFriendSheet({ visible, onClose }: Props) {
+  const router = useRouter();
+  const { firebaseUser, userProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('share');
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,6 +42,19 @@ export default function AddFriendScreen() {
   const [copied, setCopied] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!visible) {
+      setActiveTab('share');
+      setSearchQuery('');
+      setSearchResult(null);
+      setSearching(false);
+      setSent(false);
+      setCopied(false);
+      setScanned(false);
+    }
+  }, [visible]);
 
   const deepLink = userProfile?.username
     ? Linking.createURL(`friend/${userProfile.username}`)
@@ -101,7 +112,7 @@ export default function AddFriendScreen() {
     const match = data.match(/friend\/([a-z0-9_]+)/i);
     if (match) {
       setScanned(true);
-      handleDismiss();
+      onClose();
       setTimeout(() => {
         router.push(`/friend/${match[1]}`);
       }, 300);
@@ -145,13 +156,15 @@ export default function AddFriendScreen() {
     }
 
     return (
-      <View className="rounded-2xl overflow-hidden" style={{ width: '100%', aspectRatio: 1 }}>
-        <CameraView
-          style={{ flex: 1 }}
-          facing="back"
-          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-        />
+      <View className="rounded-2xl overflow-hidden relative" style={{ width: '100%', aspectRatio: 1 }}>
+        {visible && activeTab === 'scan' && (
+          <CameraView
+            style={StyleSheet.absoluteFill}
+            facing="back"
+            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+            onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+          />
+        )}
         <View className="absolute bottom-4 left-0 right-0 items-center">
           <Text variant="caption" className="text-white bg-black/50 px-4 py-1.5 rounded-full overflow-hidden">
             Point at a HereNow QR code
@@ -213,42 +226,47 @@ export default function AddFriendScreen() {
   );
 
   return (
-    <View className="flex-1" style={{ justifyContent: 'flex-end' }}>
-      {/* Backdrop — tap to dismiss */}
-      <Pressable style={StyleSheet.absoluteFill} onPress={handleDismiss} />
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable
+        className="flex-1 bg-black/40 justify-end"
+        onPress={onClose}
+      >
+        <Pressable
+          className="bg-surface rounded-t-3xl px-5 pb-10 pt-3"
+          style={{ maxHeight: '85%' }}
+          onPress={(e) => e.stopPropagation()}
+        >
+          {/* Close handle */}
+          <Pressable onPress={onClose} className="self-center mb-3 p-1">
+            <View className="w-9 h-1 rounded-full bg-ink-200" />
+          </Pressable>
+          <Text variant="h2" className="text-center mb-4">Add Friend</Text>
 
-      {/* Sheet content */}
-      <View className="bg-surface rounded-t-3xl px-5 pb-10 pt-3" style={{ maxHeight: screenHeight * 0.75 }}>
-        {/* Close handle */}
-        <Pressable onPress={handleDismiss} className="self-center mb-3 p-1">
-          <View className="w-9 h-1 rounded-full bg-ink-200" />
-        </Pressable>
-        <Text variant="h2" className="text-center mb-4">Add Friend</Text>
-
-        {/* Tab selector */}
-        <View className="flex-row bg-background rounded-2xl p-1 mb-5">
-          {(['share', 'scan', 'search'] as Tab[]).map((tab) => (
-            <Pressable
-              key={tab}
-              className={`flex-1 py-2.5 items-center rounded-xl ${
-                activeTab === tab ? 'bg-surface shadow shadow-black/10' : ''
-              }`}
-              onPress={() => setActiveTab(tab)}
-            >
-              <Text
-                variant="button-small"
-                className={activeTab === tab ? 'text-secondary' : 'text-ink-400'}
+          {/* Tab selector */}
+          <View className="flex-row bg-background rounded-2xl p-1 mb-5">
+            {(['share', 'scan', 'search'] as Tab[]).map((tab) => (
+              <Pressable
+                key={tab}
+                className={`flex-1 py-2.5 items-center rounded-xl ${
+                  activeTab === tab ? 'bg-surface shadow shadow-black/10' : ''
+                }`}
+                onPress={() => setActiveTab(tab)}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+                <Text
+                  variant="button-small"
+                  className={activeTab === tab ? 'text-secondary' : 'text-ink-400'}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
 
-        {activeTab === 'share' && renderShareTab()}
-        {activeTab === 'scan' && renderScanTab()}
-        {activeTab === 'search' && renderSearchTab()}
-      </View>
-    </View>
+          {activeTab === 'share' && renderShareTab()}
+          {activeTab === 'scan' && renderScanTab()}
+          {activeTab === 'search' && renderSearchTab()}
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }

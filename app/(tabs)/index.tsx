@@ -36,11 +36,13 @@ import { sortByPriority, assignTiers } from '../../src/utils/priority';
 import { QUICK_DURATIONS } from '../../src/constants';
 import { FriendRecord } from '../../src/types';
 import { colors } from '../../src/theme/tokens';
+import { useAddFriendModal } from '../../src/contexts/AddFriendModalContext';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { show: showAddFriend } = useAddFriendModal();
   const { firebaseUser } = useAuth();
   const {
     acceptedFriends,
@@ -418,7 +420,7 @@ export default function HomeScreen() {
               <Button
                 variant="outline"
                 label="+ Add Friend"
-                onPress={() => router.push('/add-friend')}
+                onPress={showAddFriend}
                 fullWidth
                 className="mt-4 mb-2"
               />
@@ -511,7 +513,7 @@ export default function HomeScreen() {
               <Button
                 variant="outline"
                 label="+ Add Friend"
-                onPress={() => router.push('/add-friend')}
+                onPress={showAddFriend}
                 fullWidth
                 className="mt-4 mb-2"
               />
