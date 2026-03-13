@@ -31,6 +31,7 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       await signInWithGoogle();
+      router.replace('/');
     } catch (error: any) {
       if (error.code !== 'SIGN_IN_CANCELLED') {
         const { message } = getFriendlyAuthError(error);
@@ -45,6 +46,7 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       await signInWithApple();
+      router.replace('/');
     } catch (error: any) {
       if (error.code !== 'ERR_REQUEST_CANCELED') {
         const { message } = getFriendlyAuthError(error);
@@ -173,7 +175,7 @@ export default function LoginScreen() {
           variant="secondary"
           label={isSignUp ? 'Create Account' : 'Sign In'}
           onPress={handleEmailAuth}
-          disabled={loading}
+          disabled={loading || !email.trim() || !password.trim() || (isSignUp && !displayName.trim())}
           fullWidth
           className="mt-2"
         />
