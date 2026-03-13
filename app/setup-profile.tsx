@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, KeyboardAvoidingView, Platform, Alert, Pressable, ScrollView } from 'react-native';
+import { KeyboardAvoidingView, Platform, Alert, Pressable, ScrollView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../src/hooks/useAuth';
 import { updateUserProfile, isUsernameTaken, uploadProfilePhoto } from '../src/services/users';
@@ -13,9 +13,6 @@ export default function SetupProfileScreen() {
   const [displayName, setDisplayName] = useState(userProfile?.displayName || '');
   const [username, setUsername] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
-  const [phone, setPhone] = useState('');
-  const [facetime, setFacetime] = useState('');
-  const [whatsapp, setWhatsapp] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handlePickPhoto = async () => {
@@ -62,12 +59,6 @@ export default function SetupProfileScreen() {
         photoUrl = await uploadProfilePhoto(firebaseUser.uid, photoUri);
       }
 
-      // Build contact methods (only include non-empty values)
-      const contactMethods: { phone?: string; facetime?: string; whatsapp?: string } = {};
-      if (phone.trim()) contactMethods.phone = phone.trim();
-      if (facetime.trim()) contactMethods.facetime = facetime.trim();
-      if (whatsapp.trim()) contactMethods.whatsapp = whatsapp.trim();
-
       const profileData: Record<string, any> = {
         displayName: displayName.trim() || 'User',
         username: trimmedUsername,
@@ -75,10 +66,6 @@ export default function SetupProfileScreen() {
 
       if (photoUrl) {
         profileData.photoUrl = photoUrl;
-      }
-
-      if (Object.keys(contactMethods).length > 0) {
-        profileData.contactMethods = contactMethods;
       }
 
       await updateUserProfile(firebaseUser.uid, profileData);
@@ -96,22 +83,22 @@ export default function SetupProfileScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 32 }}
         keyboardShouldPersistTaps="handled"
       >
-        <Text variant="h1" className="mb-2">
+        <Text variant="h1" className="mb-1">
           Set Up Your Profile
         </Text>
-        <Text variant="body" className="text-ink-400 mb-6">
+        <Text variant="body" className="text-ink-400 mb-8">
           Choose a display name and username
         </Text>
 
         {/* Profile Photo */}
-        <Pressable className="items-center mb-6" onPress={handlePickPhoto}>
+        <Pressable className="items-center mb-8" onPress={handlePickPhoto}>
           <Avatar
             photoUrl={photoUri}
             name={displayName || 'User'}
-            size={80}
+            size={96}
           />
           <Text variant="caption" className="text-secondary mt-2">
             {photoUri ? 'Change Photo' : 'Add Photo'}
@@ -139,42 +126,6 @@ export default function SetupProfileScreen() {
           Friends can find you with this username
         </Text>
 
-        {/* Contact Methods */}
-        <Text variant="section-header" className="mt-2 mb-2">
-          Contact Methods (Optional)
-        </Text>
-        <Text variant="footnote" className="text-ink-300 mb-3">
-          Let friends call you directly when you are online
-        </Text>
-
-        <Input
-          label="Phone Number"
-          placeholder="+1234567890"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          className="mb-3"
-        />
-
-        <Input
-          label="FaceTime"
-          placeholder="email or phone"
-          value={facetime}
-          onChangeText={setFacetime}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          className="mb-3"
-        />
-
-        <Input
-          label="WhatsApp Number"
-          placeholder="+1234567890"
-          value={whatsapp}
-          onChangeText={setWhatsapp}
-          keyboardType="phone-pad"
-          className="mb-4"
-        />
-
         <Button
           variant="primary"
           size="lg"
@@ -182,7 +133,7 @@ export default function SetupProfileScreen() {
           onPress={handleSave}
           disabled={loading}
           fullWidth
-          className="mt-4"
+          className="mt-6"
         />
       </ScrollView>
     </KeyboardAvoidingView>
