@@ -27,6 +27,12 @@ interface Props {
   currentUserId: string;
 }
 
+function getSnoozeDaysRemaining(snoozedUntil: Date): number {
+  const now = new Date();
+  const diff = snoozedUntil.getTime() - now.getTime();
+  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+}
+
 export function FriendSettingsSheet({
   visible,
   onClose,
@@ -85,19 +91,26 @@ export function FriendSettingsSheet({
     );
   };
 
+  const handleChangeSnoozeDate = () => {
+    setShowSnoozePicker(true);
+  };
+
   const lastConnectedText = formatLastConnected(friend.lastConnectionAt);
+  const snoozedDimStyle = isSnoozed ? { opacity: 0.5 } : undefined;
 
   return (
     <>
       <Sheet visible={visible} onClose={onClose}>
-        {/* Header */}
+        {/* Header with stats on RHS */}
         <View className="flex-row items-center mb-4">
-          <Avatar
-            photoUrl={profile?.photoUrl}
-            name={profile?.displayName || 'User'}
-            size={48}
-          />
-          <View className="ml-3">
+          <View style={snoozedDimStyle}>
+            <Avatar
+              photoUrl={profile?.photoUrl}
+              name={profile?.displayName || 'User'}
+              size={44}
+            />
+          </View>
+          <View className="ml-2.5 flex-1" style={snoozedDimStyle}>
             <Text variant="h3">
               {profile?.displayName || 'User'}
             </Text>
@@ -105,47 +118,29 @@ export function FriendSettingsSheet({
               @{profile?.username || '...'}
             </Text>
           </View>
-        </View>
-
-        {/* Stats */}
-        <View className="bg-background rounded-2xl p-3 mb-4">
-          <View className="flex-row justify-between py-1.5">
-            <Text variant="body" className="text-ink-400">Last connected</Text>
-            <Text variant="body-medium">{lastConnectedText}</Text>
-          </View>
-          <View className="h-px bg-ink-100 my-1" />
-          <Pressable
-            className="flex-row justify-between py-1.5"
-            onPress={() => setShowHistory(true)}
-          >
-            <Text variant="body" className="text-ink-400">Times connected</Text>
-            <View className="flex-row items-center">
-              <Text variant="body-medium" className="text-secondary">
-                {friend.connectionCount}
+          <View className="items-end">
+            <Text variant="caption" className="text-ink-400">
+              Last: <Text variant="caption" className="text-ink-800 font-semibold">{lastConnectedText}</Text>
+            </Text>
+            <Pressable onPress={() => setShowHistory(true)}>
+              <Text variant="caption" className="text-ink-400 mt-0.5">
+                Connected: <Text variant="caption" className="text-secondary font-semibold">{friend.connectionCount} times</Text>
               </Text>
-              <Text variant="caption" className="text-ink-300 ml-1">{'>'}</Text>
-            </View>
-          </Pressable>
+            </Pressable>
+          </View>
         </View>
 
-        {/* Log catch-up */}
-        <Button
-          variant="outline"
-          label="Log Catch-up"
-          onPress={handleLogCatchUp}
-          fullWidth
-          className="mb-5"
-        />
-
-        {/* Frequency Goal Section */}
-        <View className="mb-5">
-          <Text variant="section-header" className="mb-1">
-            Frequency Goal
-          </Text>
-          <Text variant="caption" className="text-ink-300 mb-3">
-            How often you'd like to connect. We'll prioritize overdue friends.
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
+        {/* Connection Goal + Notifications (combined card) */}
+        <View
+          className="bg-glass-card rounded-xl p-3 mb-3"
+          style={snoozedDimStyle}
+        >
+          {/* Connection goal */}
+          <View>
+            <Text variant="body-medium" className="text-ink-800">Connection goal</Text>
+            <Text variant="caption" className="text-ink-300 mt-0.5">Overdue friends are highlighted</Text>
+          </View>
+          <View className="flex-row flex-wrap gap-1.5 mt-2.5">
             {FREQUENCY_GOALS.map((g) => (
               <Chip
                 key={g.value}
@@ -158,19 +153,19 @@ export function FriendSettingsSheet({
                 }
               />
             ))}
+            <Chip
+              label="✕"
+              selected={friend.frequencyGoal === null}
+              onPress={() => handleSetGoal(null)}
+            />
           </View>
-        </View>
 
-        {/* Notifications Section */}
-        <View className="mb-5">
-          <Text variant="section-header" className="mb-1">
-            Notifications
-          </Text>
-          <Text variant="caption" className="text-ink-300 mb-3">
-            Control whether you're notified when this friend comes online.
-          </Text>
-          <View className="flex-row justify-between items-center bg-background rounded-2xl px-3 py-2.5">
-            <Text variant="body">Notify when online</Text>
+          {/* Divider */}
+          <View className="h-px bg-ink-100 -mx-3 my-2.5" />
+
+          {/* Notify when online */}
+          <View className="flex-row items-center justify-between">
+            <Text variant="body-medium" className="text-ink-800">Notify me when {(profile?.displayName || 'friend').split(' ')[0]} is online</Text>
             <Switch
               value={notificationsEnabled}
               onValueChange={handleToggleNotifications}
@@ -180,23 +175,60 @@ export function FriendSettingsSheet({
           </View>
         </View>
 
-        {/* Snooze Section */}
-        <View className="mb-5">
-          <Text variant="section-header" className="mb-1">
-            Snooze
-          </Text>
-          <Text variant="caption" className="text-ink-300 mb-3">
-            Temporarily stop notifications and deprioritize this friend.
-          </Text>
-          {isSnoozed ? (
-            <Button
-              variant="outline"
-              label="Unsnooze"
-              onPress={handleUnsnooze}
-              fullWidth
-            />
-          ) : showSnoozePicker ? (
-            <View className="flex-row flex-wrap gap-2">
+        {/* Snooze */}
+        {isSnoozed ? (
+          <View
+            className="rounded-xl p-3 mb-2.5"
+            style={{ backgroundColor: '#FFFBEB', borderWidth: 1.5, borderColor: '#FDE68A' }}
+          >
+            <View className="flex-row items-center gap-2">
+              <Text variant="body-medium" style={{ color: '#92400E' }}>Snoozed</Text>
+              <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: '#FEF3C7' }}>
+                <Text variant="caption" style={{ color: '#92400E' }} className="font-medium">
+                  ⏸ {getSnoozeDaysRemaining(friend.snoozedUntil!)} days left
+                </Text>
+              </View>
+            </View>
+            <Text variant="caption" style={{ color: '#92400E', opacity: 0.7 }} className="mt-0.5">
+              Neither of you will see each other online
+            </Text>
+            {showSnoozePicker ? (
+              <View className="flex-row flex-wrap gap-1.5 mt-2">
+                {SNOOZE_DURATIONS.map((s) => (
+                  <Chip
+                    key={s.days}
+                    label={s.label}
+                    onPress={() => handleSnooze(s.days)}
+                  />
+                ))}
+              </View>
+            ) : (
+              <View className="flex-row gap-2 mt-1.5">
+                <Pressable
+                  className="rounded-full px-2.5 py-1 border"
+                  style={{ borderColor: '#FDE68A', backgroundColor: colors.surface }}
+                  onPress={handleUnsnooze}
+                >
+                  <Text variant="caption" className="font-semibold" style={{ color: '#92400E' }}>
+                    End now
+                  </Text>
+                </Pressable>
+                <Pressable
+                  className="rounded-full px-2.5 py-1 border"
+                  style={{ borderColor: '#FDE68A', backgroundColor: colors.surface }}
+                  onPress={handleChangeSnoozeDate}
+                >
+                  <Text variant="caption" className="font-semibold" style={{ color: '#92400E' }}>
+                    Change date
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+        ) : showSnoozePicker ? (
+          <View className="rounded-xl border border-ink-100 p-3 mb-2.5">
+            <Text variant="body-medium" className="text-ink-800 mb-2">Snooze for…</Text>
+            <View className="flex-row flex-wrap gap-1.5">
               {SNOOZE_DURATIONS.map((s) => (
                 <Chip
                   key={s.days}
@@ -205,28 +237,30 @@ export function FriendSettingsSheet({
                 />
               ))}
             </View>
-          ) : (
-            <Button
-              variant="outline"
-              label="Snooze"
-              onPress={() => setShowSnoozePicker(true)}
-              fullWidth
-            />
-          )}
-        </View>
-
-        {/* Danger Zone */}
-        <View className="border-t border-ink-100 pt-4 mt-1">
-          <Text variant="section-header" className="text-error mb-3">
-            Danger Zone
-          </Text>
+          </View>
+        ) : (
           <Button
-            variant="destructive"
-            label="Remove Friend"
-            onPress={handleRemove}
+            variant="outline"
+            label="Snooze"
+            onPress={() => setShowSnoozePicker(true)}
             fullWidth
+            className="mb-2.5"
           />
-        </View>
+        )}
+
+        {/* Log Catch-up (primary CTA) */}
+        <Button
+          variant="primary"
+          label="Log Catch-up"
+          onPress={handleLogCatchUp}
+          fullWidth
+          className="mb-3"
+        />
+
+        {/* Remove friend (plain text link) */}
+        <Pressable onPress={handleRemove} className="items-center py-1">
+          <Text variant="body-medium" className="text-error">Remove friend</Text>
+        </Pressable>
       </Sheet>
 
       {/* Connection History Sheet */}
