@@ -4,7 +4,7 @@
     "slug": "herenow",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icon-light.png",
     "userInterfaceStyle": "automatic",
     "scheme": "herenow",
     "runtimeVersion": {
@@ -52,7 +52,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png"
+          "icon": "./assets/icon-light.png"
         }
       ],
       "expo-image-picker",

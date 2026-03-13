@@ -172,6 +172,87 @@ const option2cSvg = `
   <circle cx="490" cy="490" r="30" fill="white" opacity="0.3"/>
 </svg>`;
 
+// Light mode icon — realistic glow, full square (iOS applies its own mask)
+const iconLightSvg = `
+<svg width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Subtle warm-to-cool radial background -->
+    <radialGradient id="lightBg" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#F0EEF5"/>
+      <stop offset="100%" stop-color="#E4E0ED"/>
+    </radialGradient>
+
+    <!-- Center dot gradient: light purple to deep indigo -->
+    <radialGradient id="dotGradLight" cx="45%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#B794F6"/>
+      <stop offset="50%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#4C1D95"/>
+    </radialGradient>
+
+    <!-- Wide ambient haze -->
+    <filter id="glowWide" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="80" result="blur"/>
+    </filter>
+
+    <!-- Medium glow spread -->
+    <filter id="glowMed" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="40" result="blur"/>
+    </filter>
+
+    <!-- Tight bright core glow -->
+    <filter id="glowTight" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="15" result="blur"/>
+    </filter>
+
+    <!-- Ring glow filters -->
+    <filter id="ringGlowOuter" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+    </filter>
+    <filter id="ringGlowMid" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+    </filter>
+    <filter id="ringGlowInner" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+    </filter>
+  </defs>
+
+  <!-- Background — full square, no rx -->
+  <rect width="${SIZE}" height="${SIZE}" fill="url(#lightBg)"/>
+
+  <!-- Faint HN watermark at ~12% opacity -->
+  <text x="512" y="680" font-family="Arial Black, Impact, sans-serif" font-weight="900"
+        font-size="520" fill="#7C3AED" text-anchor="middle" letter-spacing="-20" opacity="0.12">HN</text>
+
+  <!-- Outer ring glow -->
+  <circle cx="512" cy="512" r="340" fill="none" stroke="#7C3AED" stroke-width="8" opacity="0.15" filter="url(#ringGlowOuter)"/>
+  <!-- Outer ring -->
+  <circle cx="512" cy="512" r="340" fill="none" stroke="#7C3AED" stroke-width="6" opacity="0.18"/>
+
+  <!-- Middle ring glow -->
+  <circle cx="512" cy="512" r="260" fill="none" stroke="#8B5CF6" stroke-width="8" opacity="0.2" filter="url(#ringGlowMid)"/>
+  <!-- Middle ring -->
+  <circle cx="512" cy="512" r="260" fill="none" stroke="#8B5CF6" stroke-width="7" opacity="0.3"/>
+
+  <!-- Inner ring glow -->
+  <circle cx="512" cy="512" r="180" fill="none" stroke="#A78BFA" stroke-width="10" opacity="0.25" filter="url(#ringGlowInner)"/>
+  <!-- Inner ring -->
+  <circle cx="512" cy="512" r="180" fill="none" stroke="#A78BFA" stroke-width="8" opacity="0.45"/>
+
+  <!-- Multi-layer glow behind center dot -->
+  <!-- Layer 1: Wide ambient haze -->
+  <circle cx="512" cy="512" r="160" fill="#7C3AED" opacity="0.12" filter="url(#glowWide)"/>
+  <!-- Layer 2: Medium spread -->
+  <circle cx="512" cy="512" r="120" fill="#8B5CF6" opacity="0.2" filter="url(#glowMed)"/>
+  <!-- Layer 3: Tight bright core -->
+  <circle cx="512" cy="512" r="100" fill="#A78BFA" opacity="0.35" filter="url(#glowTight)"/>
+
+  <!-- Main center dot with rich gradient -->
+  <circle cx="512" cy="512" r="90" fill="url(#dotGradLight)"/>
+
+  <!-- Specular highlight — off-center for 3D depth -->
+  <circle cx="488" cy="488" r="28" fill="white" opacity="0.35"/>
+</svg>`;
+
 async function generate() {
   const options = [
     { name: "option-1-vibrant-lettermark", svg: option1Svg },
@@ -187,6 +268,11 @@ async function generate() {
     await sharp(Buffer.from(opt.svg)).resize(SIZE, SIZE).png().toFile(outPath);
     console.log(`✓ Generated ${outPath}`);
   }
+
+  // Generate light mode icon to assets/icon-light.png
+  const lightIconPath = path.join(__dirname, "..", "assets", "icon-light.png");
+  await sharp(Buffer.from(iconLightSvg)).resize(SIZE, SIZE).png().toFile(lightIconPath);
+  console.log(`✓ Generated ${lightIconPath}`);
 }
 
 generate().catch((err) => {
