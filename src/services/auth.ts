@@ -147,7 +147,8 @@ function handleAuthError(error: any): never {
       '• Apple Sign-In\n' +
       '• Google Sign-In\n' +
       '• Email and password\n\n' +
-      'Use whichever method you first created your account with.'
+      'Use whichever method you first created your account with.\n\n' +
+      'You\'ll be able to link additional sign-in methods in a future update.'
     );
   }
   throw error;
