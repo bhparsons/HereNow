@@ -3,7 +3,6 @@ import { useEffect } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { AuthProvider } from '../src/hooks/useAuth';
-import { AddFriendModalProvider } from '../src/contexts/AddFriendModalContext';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -32,13 +31,11 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <AddFriendModalProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="login" />
-          <Stack.Screen name="setup-profile" />
-        </Stack>
-      </AddFriendModalProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="login" />
+        <Stack.Screen name="setup-profile" />
+      </Stack>
     </AuthProvider>
   );
 }

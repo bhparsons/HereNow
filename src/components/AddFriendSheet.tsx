@@ -6,10 +6,9 @@ import {
   Alert,
   Share,
   ScrollView,
-  Modal,
   StyleSheet,
+  Modal,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import * as Clipboard from 'expo-clipboard';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -21,6 +20,7 @@ import { Avatar } from './Avatar';
 import { Button } from './ui/Button';
 import { Text } from './ui/Text';
 import { User } from '../types';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/tokens';
 
 type Tab = 'share' | 'scan' | 'search';
@@ -28,10 +28,11 @@ type Tab = 'share' | 'scan' | 'search';
 interface Props {
   visible: boolean;
   onClose: () => void;
+  onNavigateToFriend: (username: string) => void;
 }
 
-export function AddFriendSheet({ visible, onClose }: Props) {
-  const router = useRouter();
+export function AddFriendSheet({ visible, onClose, onNavigateToFriend }: Props) {
+  const insets = useSafeAreaInsets();
   const { firebaseUser, userProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('share');
 
@@ -42,19 +43,6 @@ export function AddFriendSheet({ visible, onClose }: Props) {
   const [copied, setCopied] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
-
-  // Reset state when modal closes
-  useEffect(() => {
-    if (!visible) {
-      setActiveTab('share');
-      setSearchQuery('');
-      setSearchResult(null);
-      setSearching(false);
-      setSent(false);
-      setCopied(false);
-      setScanned(false);
-    }
-  }, [visible]);
 
   const deepLink = userProfile?.username
     ? Linking.createURL(`friend/${userProfile.username}`)
@@ -114,7 +102,7 @@ export function AddFriendSheet({ visible, onClose }: Props) {
       setScanned(true);
       onClose();
       setTimeout(() => {
-        router.push(`/friend/${match[1]}`);
+        onNavigateToFriend(match[1]);
       }, 300);
     }
   };
@@ -127,7 +115,7 @@ export function AddFriendSheet({ visible, onClose }: Props) {
     <View className="items-center">
       <View className="justify-center items-center py-4">
         {userProfile?.username && (
-          <View className="p-4 bg-surface rounded-2xl mb-3 shadow shadow-black/5">
+          <View className="p-4 bg-surface rounded-2xl mb-3" style={{ shadowColor: '#000', shadowOpacity: 0.05, shadowOffset: { width: 0, height: 1 }, shadowRadius: 2 }}>
             <QRCode value={deepLink} size={160} color={colors.ink.DEFAULT} backgroundColor={colors.surface} />
           </View>
         )}
@@ -166,7 +154,7 @@ export function AddFriendSheet({ visible, onClose }: Props) {
           />
         )}
         <View className="absolute bottom-4 left-0 right-0 items-center">
-          <Text variant="caption" className="text-white bg-black/50 px-4 py-1.5 rounded-full overflow-hidden">
+          <Text variant="caption" className="text-white px-4 py-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
             Point at a HereNow QR code
           </Text>
         </View>
@@ -228,12 +216,13 @@ export function AddFriendSheet({ visible, onClose }: Props) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable
-        className="flex-1 bg-black/40 justify-end"
+        className="flex-1 justify-end"
+        style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
         onPress={onClose}
       >
         <Pressable
-          className="bg-surface rounded-t-3xl px-5 pb-10 pt-3"
-          style={{ maxHeight: '85%' }}
+          className="bg-surface rounded-t-3xl px-5 pt-3"
+          style={{ maxHeight: '85%', paddingBottom: Math.max(insets.bottom, 20) + 10 }}
           onPress={(e) => e.stopPropagation()}
         >
           {/* Close handle */}
@@ -248,8 +237,9 @@ export function AddFriendSheet({ visible, onClose }: Props) {
               <Pressable
                 key={tab}
                 className={`flex-1 py-2.5 items-center rounded-xl ${
-                  activeTab === tab ? 'bg-surface shadow shadow-black/10' : ''
+                  activeTab === tab ? 'bg-surface' : ''
                 }`}
+                style={activeTab === tab ? { shadowColor: '#000', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 1 }, shadowRadius: 2 } : undefined}
                 onPress={() => setActiveTab(tab)}
               >
                 <Text

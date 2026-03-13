@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/hooks/useAuth';
+import { AddFriendModalProvider } from '../../src/contexts/AddFriendModalContext';
 import { colors } from '../../src/theme/tokens';
 
 export default function TabLayout() {
@@ -17,6 +18,7 @@ export default function TabLayout() {
   if (loading || !firebaseUser) return null;
 
   return (
+    <AddFriendModalProvider>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: colors.primary.DEFAULT,
@@ -53,5 +55,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </AddFriendModalProvider>
   );
 }
