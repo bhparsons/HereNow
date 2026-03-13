@@ -32,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = subscribeToAuthState(async (user) => {
+      setLoading(true);
       setFirebaseUser(user);
       if (user) {
         const profile = await getUserProfile(user.uid);
