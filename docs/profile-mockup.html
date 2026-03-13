@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HereNow - Profile Screen Mockup</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', 'Segoe UI', sans-serif;
+    background: #F8FAFC;
+    display: flex;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .phone-frame {
+    width: 375px;
+    height: 812px;
+    background: #F8FAFC;
+    border-radius: 40px;
+    border: 3px solid #E2E8F0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+  }
+
+  .status-bar {
+    height: 54px;
+    flex-shrink: 0;
+  }
+
+  .screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 20px 24px 32px;
+  }
+
+  .form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .input-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    letter-spacing: 0.02em;
+  }
+
+  .input-group input {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 16px;
+    color: #0F172A;
+    outline: none;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  .input-group input::placeholder {
+    color: #94A3B8;
+  }
+
+  .toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+  }
+
+  .toggle-label .title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0F172A;
+  }
+
+  .toggle-label .subtitle {
+    font-size: 12px;
+    color: #64748B;
+    margin-top: 2px;
+  }
+
+  .toggle-switch {
+    width: 48px;
+    height: 28px;
+    background: #6366F1;
+    border-radius: 14px;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    background: #FFFFFF;
+    border-radius: 50%;
+    top: 3px;
+    right: 3px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+
+  .section-header {
+    font-size: 13px;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 6px;
+  }
+
+  .section-subtitle {
+    font-size: 12px;
+    color: #94A3B8;
+    margin-top: -6px;
+  }
+
+  .actions-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .btn-save {
+    background: #6366F1;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 14px;
+    padding: 15px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.01em;
+  }
+
+  .btn-signout {
+    background: none;
+    border: none;
+    color: #EF4444;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 8px;
+  }
+
+  .annotation {
+    position: absolute;
+    right: -220px;
+    background: #FFF7ED;
+    border: 1px solid #FDBA74;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #9A3412;
+    width: 190px;
+    line-height: 1.4;
+  }
+
+  .wrapper {
+    position: relative;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <div class="phone-frame">
+    <div class="status-bar"></div>
+
+    <div class="screen">
+      <!-- Top: form fields -->
+      <div class="form-section">
+        <div class="input-group">
+          <label>Display Name</label>
+          <input type="text" value="Blake Parsons" />
+        </div>
+
+        <div class="input-group">
+          <label>Username</label>
+          <input type="text" value="blake" />
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-label">
+            <div class="title">Discoverable by search</div>
+            <div class="subtitle">Let others find you by username</div>
+          </div>
+          <div class="toggle-switch"></div>
+        </div>
+
+        <div class="section-header">Contact Methods</div>
+        <div class="section-subtitle">Let friends call you directly when you are online</div>
+
+        <div class="input-group">
+          <label>FaceTime</label>
+          <input type="text" placeholder="email or phone" />
+        </div>
+      </div>
+
+      <!-- Bottom: actions pinned to bottom -->
+      <div class="actions-section">
+        <button class="btn-save">Save Changes</button>
+        <button class="btn-signout">Sign Out</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Annotations for review -->
+  <div class="annotation" style="top: 80px;">Photo picker removed (code preserved for future use)</div>
+  <div class="annotation" style="top: 480px;">Phone &amp; WhatsApp hidden (state &amp; save logic preserved)</div>
+  <div class="annotation" style="top: 640px;">Save &amp; Sign Out pinned to bottom via flex justify-between</div>
+</div>
+
+</body>
+</html>

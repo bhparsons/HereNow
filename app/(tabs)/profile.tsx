@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   View,
-  ScrollView,
   Switch,
   Alert,
   Pressable,
@@ -107,99 +106,109 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <ScrollView contentContainerStyle={{ padding: 24 }}>
-        <Pressable className="items-center mb-8" onPress={handlePickPhoto}>
-          <Avatar
-            photoUrl={userProfile?.photoUrl}
-            name={userProfile?.displayName || 'User'}
-            size={80}
-          />
-          <Text variant="caption" className="text-secondary mt-2">
-            Change Photo
-          </Text>
-        </Pressable>
-
-        <Input
-          label="Display Name"
-          value={displayName}
-          onChangeText={setDisplayName}
-          autoCapitalize="words"
-          className="mb-4"
-        />
-
-        <Input
-          label="Username"
-          value={username}
-          onChangeText={setUsername}
-          autoCapitalize="none"
-          autoCorrect={false}
-          className="mb-4"
-        />
-
-        <View className="flex-row justify-between items-center mt-2 py-2">
-          <View>
-            <Text variant="caption-medium">Discoverable by search</Text>
-            <Text variant="caption" className="text-ink-400 mt-0.5">
-              Let others find you by username
+      <View className="flex-1 justify-between px-6 pt-5 pb-8">
+        {/* Top: form fields */}
+        <View>
+          {/* Photo picker hidden — re-enable by uncommenting below
+          <Pressable className="items-center mb-8" onPress={handlePickPhoto}>
+            <Avatar
+              photoUrl={userProfile?.photoUrl}
+              name={userProfile?.displayName || 'User'}
+              size={80}
+            />
+            <Text variant="caption" className="text-secondary mt-2">
+              Change Photo
             </Text>
-          </View>
-          <Switch
-            value={isPublic}
-            onValueChange={setIsPublic}
-            trackColor={{ false: colors.ink[100], true: colors.primary.DEFAULT }}
-            thumbColor={colors.surface}
+          </Pressable>
+          */}
+
+          <Input
+            label="Display Name"
+            value={displayName}
+            onChangeText={setDisplayName}
+            autoCapitalize="words"
+            className="mb-3"
           />
+
+          <Input
+            label="Username"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+            autoCorrect={false}
+            className="mb-2"
+          />
+
+          <View className="flex-row justify-between items-center py-2">
+            <View>
+              <Text variant="caption-medium">Discoverable by search</Text>
+              <Text variant="caption" className="text-ink-400 mt-0.5">
+                Let others find you by username
+              </Text>
+            </View>
+            <Switch
+              value={isPublic}
+              onValueChange={setIsPublic}
+              trackColor={{ false: colors.ink[100], true: colors.primary.DEFAULT }}
+              thumbColor={colors.surface}
+            />
+          </View>
+
+          {/* Contact Methods */}
+          <Text variant="section-header" className="mt-4 mb-1">
+            Contact Methods
+          </Text>
+          <Text variant="footnote" className="text-ink-300 mb-3">
+            Let friends call you directly when you are online
+          </Text>
+
+          {/* Phone & WhatsApp hidden — re-enable by uncommenting below
+          <Input
+            label="Phone Number"
+            placeholder="+1234567890"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            className="mb-3"
+          />
+          */}
+
+          <Input
+            label="FaceTime"
+            placeholder="email or phone"
+            value={facetime}
+            onChangeText={setFacetime}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+
+          {/* Phone & WhatsApp hidden — re-enable by uncommenting below
+          <Input
+            label="WhatsApp Number"
+            placeholder="+1234567890"
+            value={whatsapp}
+            onChangeText={setWhatsapp}
+            keyboardType="phone-pad"
+            className="mb-3"
+          />
+          */}
         </View>
 
-        {/* Contact Methods */}
-        <Text variant="section-header" className="mt-6 mb-2">
-          Contact Methods
-        </Text>
-        <Text variant="footnote" className="text-ink-300 mb-3">
-          Let friends call you directly when you are online
-        </Text>
+        {/* Bottom: actions pinned to bottom */}
+        <View>
+          <Button
+            variant="primary"
+            label={saving ? 'Saving...' : 'Save Changes'}
+            onPress={handleSave}
+            disabled={saving}
+            fullWidth
+          />
 
-        <Input
-          label="Phone Number"
-          placeholder="+1234567890"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          className="mb-3"
-        />
-
-        <Input
-          label="FaceTime"
-          placeholder="email or phone"
-          value={facetime}
-          onChangeText={setFacetime}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          className="mb-3"
-        />
-
-        <Input
-          label="WhatsApp Number"
-          placeholder="+1234567890"
-          value={whatsapp}
-          onChangeText={setWhatsapp}
-          keyboardType="phone-pad"
-          className="mb-4"
-        />
-
-        <Button
-          variant="primary"
-          label={saving ? 'Saving...' : 'Save Changes'}
-          onPress={handleSave}
-          disabled={saving}
-          fullWidth
-          className="mt-4"
-        />
-
-        <Pressable className="mt-6 items-center py-3" onPress={handleSignOut}>
-          <Text variant="body" className="text-error">Sign Out</Text>
-        </Pressable>
-      </ScrollView>
+          <Pressable className="mt-3 items-center py-2" onPress={handleSignOut}>
+            <Text variant="body" className="text-error">Sign Out</Text>
+          </Pressable>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
