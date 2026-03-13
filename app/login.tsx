@@ -14,6 +14,7 @@ import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
 import { Text } from '../src/components/ui/Text';
 import { colors } from '../src/theme/tokens';
+import { getFriendlyAuthError, validateEmail, validatePassword } from '../src/utils/authErrors';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -22,6 +23,9 @@ export default function LoginScreen() {
   const [displayName, setDisplayName] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [nameError, setNameError] = useState('');
 
   const handleGoogleSignIn = async () => {
     try {
@@ -29,7 +33,8 @@ export default function LoginScreen() {
       await signInWithGoogle();
     } catch (error: any) {
       if (error.code !== 'SIGN_IN_CANCELLED') {
-        Alert.alert('Error', error.message || 'Google Sign-In failed');
+        const { message } = getFriendlyAuthError(error);
+        Alert.alert('Google Sign-In Error', message);
       }
     } finally {
       setLoading(false);
@@ -42,7 +47,8 @@ export default function LoginScreen() {
       await signInWithApple();
     } catch (error: any) {
       if (error.code !== 'ERR_REQUEST_CANCELED') {
-        Alert.alert('Error', error.message || 'Apple Sign-In failed');
+        const { message } = getFriendlyAuthError(error);
+        Alert.alert('Apple Sign-In Error', message);
       }
     } finally {
       setLoading(false);
@@ -50,14 +56,20 @@ export default function LoginScreen() {
   };
 
   const handleEmailAuth = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-    if (isSignUp && !displayName) {
-      Alert.alert('Error', 'Please enter your name');
-      return;
-    }
+    // Clear previous errors
+    setEmailError('');
+    setPasswordError('');
+    setNameError('');
+
+    const emailErr = validateEmail(email);
+    const passwordErr = validatePassword(password, isSignUp);
+    const nameErr = isSignUp && !displayName.trim() ? 'Please enter your name.' : null;
+
+    if (emailErr) setEmailError(emailErr);
+    if (passwordErr) setPasswordError(passwordErr);
+    if (nameErr) setNameError(nameErr);
+
+    if (emailErr || passwordErr || nameErr) return;
 
     try {
       setLoading(true);
@@ -68,7 +80,14 @@ export default function LoginScreen() {
       }
       router.replace('/');
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Authentication failed');
+      const { message, field } = getFriendlyAuthError(error);
+      if (field === 'email') {
+        setEmailError(message);
+      } else if (field === 'password') {
+        setPasswordError(message);
+      } else {
+        Alert.alert('Sign In Error', message);
+      }
     } finally {
       setLoading(false);
     }
@@ -124,8 +143,9 @@ export default function LoginScreen() {
           <Input
             placeholder="Your name"
             value={displayName}
-            onChangeText={setDisplayName}
+            onChangeText={(t) => { setDisplayName(t); setNameError(''); }}
             autoCapitalize="words"
+            error={nameError}
             className="mb-3"
           />
         )}
@@ -133,17 +153,19 @@ export default function LoginScreen() {
         <Input
           placeholder="Email"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(t) => { setEmail(t); setEmailError(''); }}
           keyboardType="email-address"
           autoCapitalize="none"
+          error={emailError}
           className="mb-3"
         />
 
         <Input
           placeholder="Password"
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(t) => { setPassword(t); setPasswordError(''); }}
           secureTextEntry
+          error={passwordError}
           className="mb-2"
         />
 
