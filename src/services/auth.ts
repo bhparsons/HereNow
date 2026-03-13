@@ -139,9 +139,15 @@ export async function signOut(): Promise<void> {
  */
 function handleAuthError(error: any): never {
   if (error?.code === 'auth/account-exists-with-different-credential') {
+    const email = error?.customData?.email;
+    const emailLine = email ? `\n\nThe email ${email} is already in use.` : '';
     throw new Error(
-      'An account already exists with the same email address but a different sign-in method. ' +
-      'Try signing in with the method you used originally (Apple, Google, or email).'
+      `An account already exists with this email but a different sign-in method.${emailLine}\n\n` +
+      'Try one of these sign-in methods:\n' +
+      '• Apple Sign-In\n' +
+      '• Google Sign-In\n' +
+      '• Email and password\n\n' +
+      'Use whichever method you first created your account with.'
     );
   }
   throw error;
