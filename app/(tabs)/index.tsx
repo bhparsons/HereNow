@@ -76,7 +76,6 @@ export default function HomeScreen() {
     () => (selectedFriendId ? acceptedFriends.find((f) => f.friendId === selectedFriendId) ?? null : null),
     [selectedFriendId, acceptedFriends]
   );
-  const [allFriendsExpanded, setAllFriendsExpanded] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
 
   // Network connectivity listener
@@ -151,18 +150,6 @@ export default function HomeScreen() {
       return name.includes(query) || username.includes(query);
     });
   }, [sortedFriends, onlineFriendIds, friendProfiles, query]);
-
-  const offlinePreviewFriends = useMemo(() => {
-    if (query) {
-      return sortedFriends.filter((f) => {
-        const profile = friendProfiles.get(f.friendId);
-        const name = (profile?.displayName || '').toLowerCase();
-        const username = (profile?.username || '').toLowerCase();
-        return name.includes(query) || username.includes(query);
-      });
-    }
-    return sortedFriends.slice(0, 5);
-  }, [sortedFriends, friendProfiles, query]);
 
   const getLastConnectedText = (friend: FriendRecord): string =>
     formatLastConnected(friend.lastConnectionAt, { prefix: true });
@@ -321,118 +308,10 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {isAvailable ? (
-        // ─── ONLINE STATE ───
-        <View className="flex-1 px-4">
-          {/* Available Now Section */}
-          <View className="flex-1">
-            <View className="flex-row items-center mb-2">
-              <Text variant="section-header">
-                AVAILABLE NOW
-              </Text>
-              {filteredAvailableFriends.length > 0 && (
-                <View
-                  className="ml-2 px-2 py-0.5 rounded-full"
-                  style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)' }}
-                >
-                  <Text variant="footnote" style={{ color: colors.available }}>
-                    {filteredAvailableFriends.length}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <SearchBar />
-
-            <ScrollView
-              className="flex-1"
-              contentContainerStyle={{ paddingBottom: 8 }}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
-              {filteredAvailableFriends.map((friend) => (
-                <AvailableFriendCard
-                  key={friend.userId}
-                  friend={friend}
-                  tier={tierMap.get(friend.userId)}
-                />
-              ))}
-
-              {filteredAvailableFriends.length === 0 && !query && (
-                <View className="items-center py-8">
-                  <Text variant="body" className="text-ink-300 text-center">
-                    No friends are online right now
-                  </Text>
-                </View>
-              )}
-
-              {filteredAvailableFriends.length === 0 && query && (
-                <View className="items-center py-8">
-                  <Text variant="body" className="text-ink-300 text-center">
-                    No online friends match "{searchQuery}"
-                  </Text>
-                </View>
-              )}
-
-              {/* Offline Friends Section */}
-              <Pressable
-                className="flex-row justify-between items-center mt-5 mb-2"
-                onPress={() => setAllFriendsExpanded(!allFriendsExpanded)}
-              >
-                <View className="flex-row items-center">
-                  <Text variant="section-header">FRIENDS</Text>
-                  <View className="ml-2 px-2 py-0.5 rounded-full bg-ink-100">
-                    <Text variant="footnote" className="text-ink-400">
-                      {filteredOfflineFriends.length}
-                    </Text>
-                  </View>
-                </View>
-                <Ionicons
-                  name={allFriendsExpanded ? 'chevron-up' : 'chevron-down'}
-                  size={18}
-                  color={colors.ink[400]}
-                />
-              </Pressable>
-
-              {allFriendsExpanded &&
-                filteredOfflineFriends.map((friend) => {
-                  const profile = friendProfiles.get(friend.friendId);
-                  return (
-                    <FriendRow
-                      key={friend.friendId}
-                      name={profile?.displayName || 'User'}
-                      photoUrl={profile?.photoUrl}
-                      lastConnectedText={getLastConnectedText(friend)}
-                      isOnline={onlineFriendIds.has(friend.friendId)}
-                      tier={tierMap.get(friend.friendId)}
-                      onPress={() => setSelectedFriendId(friend.friendId)}
-                    />
-                  );
-                })}
-
-              {allFriendsExpanded && filteredOfflineFriends.length === 0 && (
-                <Text variant="caption" className="text-ink-300 text-center py-3">
-                  {query ? `No friends match "${searchQuery}"` : 'No offline friends'}
-                </Text>
-              )}
-
-              {/* Add Friend */}
-              <Button
-                variant="outline"
-                label="+ Add Friend"
-                onPress={showAddFriend}
-                fullWidth
-                className="mt-4 mb-2"
-              />
-            </ScrollView>
-          </View>
-        </View>
-      ) : (
-        // ─── OFFLINE STATE ───
-        <View className="flex-1 px-4">
-          {/* Go Online Button */}
+      {/* Go Online Button (only when offline) */}
+      {!isAvailable && (
+        <View className="px-4">
           <AnimatedPressable
-            style={goOnlineAnimStyle}
             className="rounded-2xl py-4 items-center mb-2.5 shadow-lg"
             style={[
               goOnlineAnimStyle,
@@ -463,64 +342,110 @@ export default function HomeScreen() {
               />
             ))}
           </View>
-
-          {/* Friends Section */}
-          <View className="flex-1">
-            <Text variant="section-header" className="mt-2 mb-2">
-              {query ? 'MATCHING FRIENDS' : 'FRIENDS'}
-            </Text>
-
-            <SearchBar />
-
-            <ScrollView
-              className="flex-1"
-              contentContainerStyle={{ paddingBottom: 8 }}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
-              {offlinePreviewFriends.map((friend) => {
-                const profile = friendProfiles.get(friend.friendId);
-                return (
-                  <FriendRow
-                    key={friend.friendId}
-                    name={profile?.displayName || 'User'}
-                    photoUrl={profile?.photoUrl}
-                    lastConnectedText={getLastConnectedText(friend)}
-                    isOnline={onlineFriendIds.has(friend.friendId)}
-                    tier={tierMap.get(friend.friendId)}
-                    onPress={() => setSelectedFriendId(friend.friendId)}
-                  />
-                );
-              })}
-
-              {acceptedFriends.length === 0 && !query && (
-                <View className="items-center py-8">
-                  <Text variant="body" className="text-ink-300 text-center">
-                    Add friends to see who's available!
-                  </Text>
-                </View>
-              )}
-
-              {acceptedFriends.length > 0 && offlinePreviewFriends.length === 0 && query && (
-                <View className="items-center py-8">
-                  <Text variant="body" className="text-ink-300 text-center">
-                    No friends match "{searchQuery}"
-                  </Text>
-                </View>
-              )}
-
-              {/* Add Friend */}
-              <Button
-                variant="outline"
-                label="+ Add Friend"
-                onPress={showAddFriend}
-                fullWidth
-                className="mt-4 mb-2"
-              />
-            </ScrollView>
-          </View>
         </View>
       )}
+
+      {/* Friend Sections (always visible) */}
+      <View className="flex-1 px-4">
+        {/* Online Friends Section */}
+        <View className="flex-row items-center mb-2">
+          <Text variant="section-header">
+            ONLINE FRIENDS
+          </Text>
+          {filteredAvailableFriends.length > 0 && (
+            <View
+              className="ml-2 px-2 py-0.5 rounded-full"
+              style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)' }}
+            >
+              <Text variant="footnote" style={{ color: colors.available }}>
+                {filteredAvailableFriends.length}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <SearchBar />
+
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ paddingBottom: 8 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {filteredAvailableFriends.map((friend) => (
+            <AvailableFriendCard
+              key={friend.userId}
+              friend={friend}
+              tier={tierMap.get(friend.userId)}
+              onPress={() => setSelectedFriendId(friend.userId)}
+            />
+          ))}
+
+          {filteredAvailableFriends.length === 0 && !query && (
+            <View className="items-center py-8">
+              <Text variant="body" className="text-ink-300 text-center">
+                No friends are online right now
+              </Text>
+            </View>
+          )}
+
+          {filteredAvailableFriends.length === 0 && query && (
+            <View className="items-center py-8">
+              <Text variant="body" className="text-ink-300 text-center">
+                No online friends match "{searchQuery}"
+              </Text>
+            </View>
+          )}
+
+          {/* Offline Friends Section */}
+          <View className="flex-row items-center mt-5 mb-2">
+            <Text variant="section-header">OFFLINE FRIENDS</Text>
+            <View className="ml-2 px-2 py-0.5 rounded-full bg-ink-100">
+              <Text variant="footnote" className="text-ink-400">
+                {filteredOfflineFriends.length}
+              </Text>
+            </View>
+          </View>
+
+          {filteredOfflineFriends.map((friend) => {
+            const profile = friendProfiles.get(friend.friendId);
+            return (
+              <FriendRow
+                key={friend.friendId}
+                name={profile?.displayName || 'User'}
+                photoUrl={profile?.photoUrl}
+                lastConnectedText={getLastConnectedText(friend)}
+                isOnline={onlineFriendIds.has(friend.friendId)}
+                tier={tierMap.get(friend.friendId)}
+                onPress={() => setSelectedFriendId(friend.friendId)}
+              />
+            );
+          })}
+
+          {filteredOfflineFriends.length === 0 && (
+            <Text variant="caption" className="text-ink-300 text-center py-3">
+              {query ? `No friends match "${searchQuery}"` : 'No offline friends'}
+            </Text>
+          )}
+
+          {acceptedFriends.length === 0 && !query && (
+            <View className="items-center py-8">
+              <Text variant="body" className="text-ink-300 text-center">
+                Add friends to see who's available!
+              </Text>
+            </View>
+          )}
+
+          {/* Add Friend */}
+          <Button
+            variant="outline"
+            label="+ Add Friend"
+            onPress={showAddFriend}
+            fullWidth
+            className="mt-4 mb-2"
+          />
+        </ScrollView>
+      </View>
 
       {/* Modals */}
       <DurationPicker

@@ -5,7 +5,7 @@ import { Avatar } from './Avatar';
 import { Badge } from './ui/Badge';
 import { Text } from './ui/Text';
 import { AvailableFriend } from '../types';
-import { formatTimeRemaining, formatElapsedTime } from '../utils/time';
+import { formatTimeRemaining } from '../utils/time';
 import { colors } from '../theme/tokens';
 
 /** Map tier number to a colored ring for the avatar. */
@@ -32,11 +32,11 @@ function isValidFaceTimeContact(value: string): boolean {
 interface Props {
   friend: AvailableFriend;
   tier?: number;
+  onPress?: () => void;
 }
 
-export function AvailableFriendCard({ friend, tier }: Props) {
+export function AvailableFriendCard({ friend, tier, onPress }: Props) {
   const [timeLeft, setTimeLeft] = useState('');
-  const [elapsedText, setElapsedText] = useState('');
 
   useEffect(() => {
     const update = () => {
@@ -45,12 +45,11 @@ export function AvailableFriendCard({ friend, tier }: Props) {
         Math.floor((friend.availableUntil.getTime() - Date.now()) / 1000)
       );
       setTimeLeft(formatTimeRemaining(remaining));
-      setElapsedText(formatElapsedTime(friend.startedAt));
     };
     update();
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
-  }, [friend.availableUntil, friend.startedAt]);
+  }, [friend.availableUntil]);
 
   const isBusy = friend.inConversation;
   const ringColor = tierToRingColor(tier ?? friend.tier);
@@ -69,7 +68,8 @@ export function AvailableFriendCard({ friend, tier }: Props) {
   };
 
   return (
-    <View
+    <Pressable
+      onPress={onPress}
       className="p-4 rounded-2xl mb-2"
       style={{
         backgroundColor: isBusy ? colors.glass.muted : colors.glass.card,
@@ -104,14 +104,9 @@ export function AvailableFriendCard({ friend, tier }: Props) {
               In a conversation
             </Text>
           ) : (
-            <View>
-              <Text variant="caption" style={{ color: colors.available }} className="mt-0.5">
-                Available for {timeLeft}
-              </Text>
-              <Text variant="footnote" className="text-ink-300 mt-0.5">
-                {elapsedText}
-              </Text>
-            </View>
+            <Text variant="caption" style={{ color: colors.available }} className="mt-0.5">
+              Available for {timeLeft}
+            </Text>
           )}
         </View>
         {isBusy ? (
@@ -144,6 +139,6 @@ export function AvailableFriendCard({ friend, tier }: Props) {
         )}
       </View>
 
-    </View>
+    </Pressable>
   );
 }
