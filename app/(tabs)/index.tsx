@@ -63,6 +63,7 @@ export default function HomeScreen() {
     goAvailable,
     goUnavailable,
     toggleInConversation,
+    updateStatus,
   } = useMyAvailability(firebaseUser?.uid);
   const { availableFriends } = useAvailableFriends(friendIds, acceptedFriends);
 
@@ -70,6 +71,7 @@ export default function HomeScreen() {
   const [showRequestsSheet, setShowRequestsSheet] = useState(false);
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusInput, setStatusInput] = useState('');
 
   // Derive selectedFriend from live acceptedFriends list to avoid stale snapshots
   const selectedFriend = useMemo(
@@ -78,6 +80,11 @@ export default function HomeScreen() {
   );
   const [allFriendsExpanded, setAllFriendsExpanded] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
+
+  // Sync status input from availability
+  useEffect(() => {
+    setStatusInput(availability?.statusMessage || '');
+  }, [availability?.statusMessage]);
 
   // Network connectivity listener
   useEffect(() => {
@@ -291,6 +298,23 @@ export default function HomeScreen() {
                 {formatTimeRemaining(timeRemaining)}
               </Text>
             </View>
+            <TextInput
+              className="text-xs text-ink mt-1.5 px-2 py-1.5 rounded-lg"
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.06)',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.08)',
+                color: colors.ink.DEFAULT,
+              }}
+              placeholder="Set a status..."
+              placeholderTextColor={colors.ink[300]}
+              maxLength={60}
+              returnKeyType="done"
+              value={statusInput}
+              onChangeText={setStatusInput}
+              onSubmitEditing={() => updateStatus(statusInput || null)}
+              onBlur={() => updateStatus(statusInput || null)}
+            />
             <View className="flex-row justify-between gap-2.5 mt-1.5">
               <Pressable
                 className="px-3.5 py-2 rounded-full border-3"

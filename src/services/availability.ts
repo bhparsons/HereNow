@@ -17,7 +17,8 @@ import { Availability, AvailableFriend } from '../types';
 
 export async function setAvailable(
   userId: string,
-  durationMinutes: number
+  durationMinutes: number,
+  statusMessage?: string
 ): Promise<void> {
   try {
     const now = new Date();
@@ -29,6 +30,7 @@ export async function setAvailable(
       startedAt: Timestamp.fromDate(now),
       inConversation: false,
       inConversationWith: null,
+      statusMessage: statusMessage || null,
     });
   } catch (error) {
     throw new Error('Failed to go online. Please try again.');
@@ -199,6 +201,20 @@ export async function setInConversation(
   );
 }
 
+/**
+ * Update the status message on an existing availability doc.
+ */
+export async function updateStatusMessage(
+  userId: string,
+  statusMessage: string | null
+): Promise<void> {
+  await setDoc(
+    doc(db, 'availability', userId),
+    { statusMessage: statusMessage || null },
+    { merge: true }
+  );
+}
+
 function parseAvailabilityDoc(userId: string, data: DocumentData): Availability {
   const availability: Availability = {
     userId,
@@ -207,6 +223,7 @@ function parseAvailabilityDoc(userId: string, data: DocumentData): Availability 
     startedAt: data.startedAt.toDate(),
     inConversation: data.inConversation || false,
     inConversationWith: data.inConversationWith || null,
+    statusMessage: data.statusMessage || undefined,
   };
 
   // Parse tier fields if present (Phase 3)
