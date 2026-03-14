@@ -117,6 +117,7 @@ export function useAvailableFriends(
               displayName: profile.displayName,
               username: profile.username,
               photoUrl: profile.photoUrl,
+              contactMethods: profile.contactMethods,
               availableUntil: avail.availableUntil,
               startedAt: avail.startedAt,
               inConversation: avail.inConversation || false,
