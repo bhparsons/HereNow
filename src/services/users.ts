@@ -20,15 +20,18 @@ import { User } from '../types';
 
 export async function createUserProfile(
   uid: string,
-  data: { displayName: string; username: string; photoUrl: string | null }
+  data: { displayName: string; username: string; photoUrl: string | null; email?: string; phone?: string }
 ): Promise<void> {
-  await setDoc(doc(db, 'users', uid), {
+  const profile: Record<string, any> = {
     displayName: data.displayName,
     username: data.username,
     photoUrl: data.photoUrl,
     isPublic: true,
     createdAt: serverTimestamp(),
-  });
+  };
+  if (data.email) profile.email = data.email;
+  if (data.phone) profile.phone = data.phone;
+  await setDoc(doc(db, 'users', uid), profile);
 }
 
 export async function getUserProfile(uid: string): Promise<User | null> {
@@ -43,13 +46,15 @@ export async function getUserProfile(uid: string): Promise<User | null> {
     isPublic: data.isPublic ?? true,
     createdAt: data.createdAt?.toDate() || new Date(),
     pushToken: data.pushToken,
+    email: data.email,
+    phone: data.phone,
     contactMethods: data.contactMethods,
   };
 }
 
 export async function updateUserProfile(
   uid: string,
-  data: Partial<Pick<User, 'displayName' | 'username' | 'photoUrl' | 'pushToken' | 'isPublic' | 'contactMethods'>>
+  data: Partial<Pick<User, 'displayName' | 'username' | 'photoUrl' | 'pushToken' | 'isPublic' | 'contactMethods' | 'email' | 'phone'>>
 ): Promise<void> {
   await setDoc(doc(db, 'users', uid), data, { merge: true });
 }
@@ -82,6 +87,8 @@ export async function findUserByUsername(
     photoUrl: data.photoUrl,
     isPublic,
     createdAt: data.createdAt?.toDate() || new Date(),
+    email: data.email,
+    phone: data.phone,
     contactMethods: data.contactMethods,
   };
 }

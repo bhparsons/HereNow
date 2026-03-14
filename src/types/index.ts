@@ -4,6 +4,8 @@ export interface User {
   username: string;
   photoUrl: string | null;
   createdAt: Date;
+  email?: string;
+  phone?: string;
   pushToken?: string;
   isPublic?: boolean;
   contactMethods?: {

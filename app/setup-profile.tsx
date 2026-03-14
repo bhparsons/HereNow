@@ -1,26 +1,47 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/hooks/useAuth';
 import { updateUserProfile, isUsernameTaken } from '../src/services/users';
 import { Input } from '../src/components/ui/Input';
 import { Button } from '../src/components/ui/Button';
 import { Text } from '../src/components/ui/Text';
+import { isValidEmail, isValidPhoneNumber, validateFaceTimeContact } from '../src/utils/validation';
+import { colors } from '../src/theme/tokens';
+
+type FaceTimeSource = 'email' | 'phone' | 'other';
 
 export default function SetupProfileScreen() {
   const { firebaseUser, userProfile, refreshProfile } = useAuth();
   const router = useRouter();
   const [displayName, setDisplayName] = useState(userProfile?.displayName || '');
   const [username, setUsername] = useState('');
-  const [facetime, setFacetime] = useState('');
+  const [phone, setPhone] = useState('');
+  const [facetimeSource, setFacetimeSource] = useState<FaceTimeSource>('email');
+  const [facetimeCustom, setFacetimeCustom] = useState('');
   const [loading, setLoading] = useState(false);
   const [usernameError, setUsernameError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [facetimeError, setFacetimeError] = useState('');
+
+  const authEmail = firebaseUser?.email || '';
+
+  const getResolvedFaceTimeContact = (): string => {
+    switch (facetimeSource) {
+      case 'email':
+        return authEmail;
+      case 'phone':
+        return phone.trim();
+      case 'other':
+        return facetimeCustom.trim();
+    }
+  };
 
   const handleSave = async () => {
     if (!firebaseUser) return;
 
     setUsernameError('');
+    setPhoneError('');
     setFacetimeError('');
 
     const trimmedUsername = username.trim().toLowerCase();
@@ -34,12 +55,17 @@ export default function SetupProfileScreen() {
       hasError = true;
     }
 
-    const trimmedFacetime = facetime.trim();
-    if (trimmedFacetime) {
-      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedFacetime);
-      const isPhone = /^\+\d{9,}$/.test(trimmedFacetime);
-      if (!isEmail && !isPhone) {
-        setFacetimeError('Enter a valid email or phone number');
+    const trimmedPhone = phone.trim();
+    if (trimmedPhone && !isValidPhoneNumber(trimmedPhone)) {
+      setPhoneError('Enter a valid phone number');
+      hasError = true;
+    }
+
+    const resolvedFacetime = getResolvedFaceTimeContact();
+    if (resolvedFacetime) {
+      const result = validateFaceTimeContact(resolvedFacetime);
+      if (!result.valid) {
+        setFacetimeError(result.error || 'Invalid FaceTime contact');
         hasError = true;
       }
     }
@@ -59,8 +85,12 @@ export default function SetupProfileScreen() {
         username: trimmedUsername,
       };
 
-      if (trimmedFacetime) {
-        profileData.contactMethods = { facetime: trimmedFacetime };
+      if (trimmedPhone) {
+        profileData.phone = trimmedPhone;
+      }
+
+      if (resolvedFacetime) {
+        profileData.contactMethods = { facetime: resolvedFacetime };
       }
 
       await updateUserProfile(firebaseUser.uid, profileData);
@@ -72,6 +102,12 @@ export default function SetupProfileScreen() {
       setLoading(false);
     }
   };
+
+  const chipStyle = (active: boolean) =>
+    `px-4 py-2 rounded-full mr-2 ${active ? 'bg-primary' : 'bg-surface border border-ink-100'}`;
+
+  const chipTextColor = (active: boolean) =>
+    active ? 'text-white' : 'text-ink';
 
   return (
     <KeyboardAvoidingView
@@ -88,6 +124,20 @@ export default function SetupProfileScreen() {
         <Text variant="body" className="text-ink-400 mb-8">
           Choose a display name and username
         </Text>
+
+        {/* Auth email (read-only) */}
+        {authEmail ? (
+          <View className="mb-4">
+            <Text variant="caption-medium" className="mb-1.5 text-ink">
+              Email
+            </Text>
+            <View className="bg-ink-50 rounded-2xl px-4 py-4 border-3 border-ink-100">
+              <Text variant="body" className="text-ink-400">
+                {authEmail}
+              </Text>
+            </View>
+          </View>
+        ) : null}
 
         <Input
           label="Display Name"
@@ -115,18 +165,84 @@ export default function SetupProfileScreen() {
         </Text>
 
         <Input
-          label="FaceTime"
-          placeholder="email or phone number"
-          value={facetime}
+          label="Phone Number"
+          placeholder="+1 (555) 123-4567"
+          value={phone}
           onChangeText={(t) => {
-            setFacetime(t);
-            setFacetimeError('');
+            setPhone(t);
+            setPhoneError('');
           }}
-          autoCapitalize="none"
-          autoCorrect={false}
-          error={facetimeError}
+          keyboardType="phone-pad"
+          error={phoneError}
           className="mb-4"
         />
+
+        {/* FaceTime selector */}
+        <Text variant="caption-medium" className="mb-1.5 text-ink">
+          FaceTime Contact
+        </Text>
+        <Text variant="footnote" className="text-ink-300 mb-2">
+          How friends will FaceTime you
+        </Text>
+        <View className="flex-row mb-3">
+          <Pressable
+            className={chipStyle(facetimeSource === 'email')}
+            onPress={() => { setFacetimeSource('email'); setFacetimeError(''); }}
+          >
+            <Text variant="caption-medium" className={chipTextColor(facetimeSource === 'email')}>
+              Email
+            </Text>
+          </Pressable>
+          <Pressable
+            className={chipStyle(facetimeSource === 'phone')}
+            onPress={() => { setFacetimeSource('phone'); setFacetimeError(''); }}
+          >
+            <Text variant="caption-medium" className={chipTextColor(facetimeSource === 'phone')}>
+              Phone
+            </Text>
+          </Pressable>
+          <Pressable
+            className={chipStyle(facetimeSource === 'other')}
+            onPress={() => { setFacetimeSource('other'); setFacetimeError(''); }}
+          >
+            <Text variant="caption-medium" className={chipTextColor(facetimeSource === 'other')}>
+              Other
+            </Text>
+          </Pressable>
+        </View>
+
+        {facetimeSource === 'email' && authEmail ? (
+          <View className="bg-ink-50 rounded-2xl px-4 py-4 border-3 border-ink-100 mb-1">
+            <Text variant="body" className="text-ink-400">
+              {authEmail}
+            </Text>
+          </View>
+        ) : facetimeSource === 'phone' ? (
+          <View className="bg-ink-50 rounded-2xl px-4 py-4 border-3 border-ink-100 mb-1">
+            <Text variant="body" className={phone.trim() ? 'text-ink-400' : 'text-ink-300'}>
+              {phone.trim() || 'Enter a phone number above first'}
+            </Text>
+          </View>
+        ) : (
+          <Input
+            placeholder="email or phone number"
+            value={facetimeCustom}
+            onChangeText={(t) => {
+              setFacetimeCustom(t);
+              setFacetimeError('');
+            }}
+            autoCapitalize="none"
+            autoCorrect={false}
+            className="mb-1"
+          />
+        )}
+        {facetimeError ? (
+          <Text variant="footnote" className="mt-1 text-error mb-4">
+            {facetimeError}
+          </Text>
+        ) : (
+          <View className="mb-4" />
+        )}
 
         <Button
           variant="primary"
