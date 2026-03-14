@@ -16,7 +16,6 @@ export const SNOOZE_DURATIONS: SnoozeDuration[] = [
 ];
 
 export const FREQUENCY_GOALS = [
-  { label: 'Daily', value: 'daily' as const },
   { label: 'Weekly', value: 'weekly' as const },
   { label: 'Monthly', value: 'monthly' as const },
   { label: 'Quarterly', value: 'quarterly' as const },

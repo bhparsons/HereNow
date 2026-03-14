@@ -22,6 +22,13 @@ function tierToRingColor(tier?: number): string | undefined {
   }
 }
 
+/** FaceTime accepts phone numbers or Apple ID emails. */
+function isValidFaceTimeContact(value: string): boolean {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length >= 7) return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 interface Props {
   friend: AvailableFriend;
   tier?: number;
@@ -49,28 +56,15 @@ export function AvailableFriendCard({ friend, tier }: Props) {
   const ringColor = tierToRingColor(tier ?? friend.tier);
   const contactMethods = friend.contactMethods;
 
-  const hasPhone = !!contactMethods?.phone;
-  const hasFaceTime = !!contactMethods?.facetime;
-  const hasWhatsApp = !!contactMethods?.whatsapp;
-  const hasAnyContact = hasPhone || hasFaceTime || hasWhatsApp;
+  const facetimeValue = contactMethods?.facetime;
+  const hasFaceTime = !!facetimeValue && isValidFaceTimeContact(facetimeValue);
 
-  const handleCall = (type: 'phone' | 'facetime' | 'whatsapp') => {
-    switch (type) {
-      case 'phone':
-        if (contactMethods?.phone) {
-          Linking.openURL(`tel://${contactMethods.phone}`);
-        }
-        break;
-      case 'facetime':
-        if (contactMethods?.facetime) {
-          Linking.openURL(`facetime://${contactMethods.facetime}`);
-        }
-        break;
-      case 'whatsapp':
-        if (contactMethods?.whatsapp) {
-          Linking.openURL(`whatsapp://send?phone=${contactMethods.whatsapp}`);
-        }
-        break;
+  const handleFaceTime = async () => {
+    if (!facetimeValue) return;
+    const url = `facetime://${facetimeValue}`;
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
     }
   };
 
@@ -122,6 +116,20 @@ export function AvailableFriendCard({ friend, tier }: Props) {
         </View>
         {isBusy ? (
           <Badge variant="busy" label="Busy" />
+        ) : hasFaceTime ? (
+          <Pressable onPress={handleFaceTime} hitSlop={8}>
+            <Ionicons
+              name="videocam"
+              size={22}
+              color={colors.available}
+              style={{
+                shadowColor: colors.available,
+                shadowOpacity: 0.6,
+                shadowRadius: 6,
+                shadowOffset: { width: 0, height: 0 },
+              }}
+            />
+          </Pressable>
         ) : (
           <View
             className="w-3 h-3 rounded-full"
@@ -136,38 +144,6 @@ export function AvailableFriendCard({ friend, tier }: Props) {
         )}
       </View>
 
-      {/* Contact method buttons */}
-      {!isBusy && hasAnyContact && (
-        <View className="flex-row mt-3 gap-2 pl-14">
-          {hasPhone && (
-            <Pressable
-              className="flex-row items-center bg-ink-50 px-3 py-1.5 rounded-full"
-              onPress={() => handleCall('phone')}
-            >
-              <Ionicons name="call-outline" size={14} color={colors.ink[500]} />
-              <Text variant="footnote" className="text-ink-500 ml-1">Phone</Text>
-            </Pressable>
-          )}
-          {hasFaceTime && (
-            <Pressable
-              className="flex-row items-center bg-ink-50 px-3 py-1.5 rounded-full"
-              onPress={() => handleCall('facetime')}
-            >
-              <Ionicons name="videocam-outline" size={14} color={colors.ink[500]} />
-              <Text variant="footnote" className="text-ink-500 ml-1">FaceTime</Text>
-            </Pressable>
-          )}
-          {hasWhatsApp && (
-            <Pressable
-              className="flex-row items-center bg-ink-50 px-3 py-1.5 rounded-full"
-              onPress={() => handleCall('whatsapp')}
-            >
-              <Ionicons name="logo-whatsapp" size={14} color={colors.ink[500]} />
-              <Text variant="footnote" className="text-ink-500 ml-1">WhatsApp</Text>
-            </Pressable>
-          )}
-        </View>
-      )}
     </View>
   );
 }
