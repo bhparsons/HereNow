@@ -6,58 +6,219 @@
   <title>HereNow Test Bench</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; padding: 20px; }
-    h1 { margin-bottom: 20px; color: #1a1a2e; }
-    h2 { margin-bottom: 12px; color: #16213e; font-size: 18px; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #F8FAFC;
+      color: #0F172A;
+      padding: 24px;
+    }
+    h1 {
+      margin-bottom: 24px;
+      font-size: 28px;
+      font-weight: 700;
+      color: #0F172A;
+    }
+    h1 span:first-child { font-weight: 800; color: #6366F1; }
+    h1 span:last-child { font-weight: 300; color: #0F172A; }
+    h2 {
+      margin-bottom: 12px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #1E293B;
+    }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-    .panel { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .panel {
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      backdrop-filter: blur(12px);
+    }
     .panel-full { grid-column: 1 / -1; }
-    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #555; }
-    input, select { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; margin-bottom: 10px; }
-    button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
-    .btn-primary { background: #4361ee; color: #fff; }
-    .btn-primary:hover { background: #3a56d4; }
-    .btn-danger { background: #e63946; color: #fff; }
-    .btn-danger:hover { background: #c1121f; }
-    .btn-success { background: #2a9d8f; color: #fff; }
-    .btn-success:hover { background: #238a7e; }
-    .btn-warning { background: #e9c46a; color: #333; }
-    .btn-warning:hover { background: #ddb95b; }
-    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #64748B; }
+    input, select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      font-size: 14px;
+      margin-bottom: 10px;
+      background: rgba(255, 255, 255, 0.7);
+      color: #0F172A;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus { border-color: #6366F1; }
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.85; }
+    .btn-primary { background: #6366F1; color: #fff; }
+    .btn-danger { background: #EF4444; color: #fff; }
+    .btn-success { background: #10B981; color: #fff; }
+    .btn-warning { background: #F59E0B; color: #1E293B; }
+    .btn-secondary { background: #14B8A6; color: #fff; }
+    .btn-outline {
+      background: transparent;
+      color: #6366F1;
+      border: 1px solid #C7D2FE;
+    }
+    .btn-sm { padding: 4px 10px; font-size: 12px; border-radius: 8px; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #eee; }
-    th { background: #f8f9fa; font-weight: 600; color: #555; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #F1F5F9; }
+    th { background: rgba(255, 255, 255, 0.5); font-weight: 600; color: #64748B; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
     .form-row { display: flex; gap: 10px; align-items: flex-end; }
     .form-row > div { flex: 1; }
-    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-    .status-pending_sent { background: #fff3cd; color: #856404; }
-    .status-pending_received { background: #cce5ff; color: #004085; }
-    .status-accepted { background: #d4edda; color: #155724; }
-    .status-available { background: #d4edda; color: #155724; }
-    .mono { font-family: monospace; font-size: 12px; color: #666; }
-    .empty { color: #999; font-style: italic; padding: 12px 0; }
-    .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; border-radius: 6px; color: #fff; font-size: 14px; z-index: 100; transition: opacity 0.3s; }
-    .toast-success { background: #2a9d8f; }
-    .toast-error { background: #e63946; }
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .status-pending_sent { background: #FEF3C7; color: #92400E; }
+    .status-pending_received { background: #E0E7FF; color: #3730A3; }
+    .status-accepted { background: #D1FAE5; color: #065F46; }
+    .status-available { background: #D1FAE5; color: #065F46; }
+    .status-snoozed { background: #FFFBEB; color: #92400E; }
+    .status-goal { background: #EEF2FF; color: #4338CA; font-weight: 500; }
+    .mono { font-family: monospace; font-size: 12px; color: #64748B; }
+    .empty { color: #94A3B8; font-style: italic; padding: 12px 0; }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 100;
+      transition: opacity 0.3s;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .toast-success { background: #10B981; }
+    .toast-error { background: #EF4444; }
     .actions { display: flex; gap: 4px; }
+    .chip {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid #E2E8F0;
+      background: rgba(255, 255, 255, 0.7);
+      color: #64748B;
+      transition: all 0.15s;
+    }
+    .chip:hover { border-color: #6366F1; color: #6366F1; }
+    .chip.active { background: #6366F1; color: #fff; border-color: #6366F1; }
+    .divider { height: 1px; background: #F1F5F9; margin: 12px 0; }
+    .detail-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 2px;
+    }
+    .detail-tag {
+      display: inline-block;
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 6px;
+      font-weight: 500;
+    }
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      vertical-align: middle;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #CBD5E1;
+      border-radius: 24px;
+      transition: background 0.2s;
+    }
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-slider { background: #6366F1; }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+    .snooze-status {
+      margin-top: 8px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .snooze-status.snoozed {
+      background: #FEF3C7;
+      color: #92400E;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .snooze-status.not-snoozed {
+      color: #94A3B8;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
-  <h1>HereNow Test Bench</h1>
+  <h1><span>Here</span><span>Now</span> Test Bench</h1>
 
   <div class="grid">
-    <!-- Create User -->
+    <!-- Create / Edit User -->
     <div class="panel">
-      <h2>Create User</h2>
+      <h2 id="user-panel-title">Create User</h2>
+      <label>Select User</label>
+      <select id="u-select" onchange="onUserSelect()">
+        <option value="">+ New User</option>
+      </select>
       <div class="form-row">
         <div><label>Display Name</label><input id="u-name" placeholder="Jane Doe"></div>
         <div><label>Username</label><input id="u-username" placeholder="janedoe"></div>
       </div>
-      <div class="form-row">
+      <div id="u-auth-fields" class="form-row">
         <div><label>Email</label><input id="u-email" placeholder="jane@test.com"></div>
         <div><label>Password</label><input id="u-password" type="password" placeholder="testpass123"></div>
       </div>
-      <button class="btn-primary" onclick="createUser()">Create User</button>
+      <div class="form-row">
+        <div>
+          <label>Public Profile</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="u-public">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="form-row">
+        <div><label>Phone</label><input id="u-phone" placeholder="+15551234567"></div>
+        <div><label>FaceTime</label><input id="u-facetime" placeholder="jane@icloud.com"></div>
+        <div><label>WhatsApp</label><input id="u-whatsapp" placeholder="+15551234567"></div>
+      </div>
+      <button class="btn-primary" id="u-save-btn" onclick="saveUser()">Create User</button>
     </div>
 
     <!-- Friends -->
@@ -91,7 +252,8 @@
             <option value="5">5 min</option>
             <option value="15">15 min</option>
             <option value="30" selected>30 min</option>
-            <option value="60">60 min</option>
+            <option value="60">1 hr</option>
+            <option value="120">2 hr</option>
           </select>
         </div>
       </div>
@@ -100,6 +262,53 @@
         <button class="btn-danger" onclick="setUnavailable()">Set Unavailable</button>
       </div>
       <div id="availability-table" style="margin-top: 12px;"></div>
+    </div>
+
+    <!-- Friend Settings -->
+    <div class="panel panel-full">
+      <h2>Friend Settings</h2>
+      <div class="form-row" style="margin-bottom: 12px;">
+        <div><label>User</label><select id="fs-user"></select></div>
+        <div><label>Friend</label><select id="fs-friend"></select></div>
+      </div>
+
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start;">
+        <!-- Connection Goal -->
+        <div style="flex: 1; min-width: 200px;">
+          <label>Connection Goal</label>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <span class="chip" data-goal="weekly" onclick="setGoal('weekly')">Weekly</span>
+            <span class="chip" data-goal="monthly" onclick="setGoal('monthly')">Monthly</span>
+            <span class="chip" data-goal="quarterly" onclick="setGoal('quarterly')">Quarterly</span>
+            <span class="chip" data-goal="null" onclick="setGoal(null)">No goal</span>
+          </div>
+        </div>
+
+        <!-- Snooze -->
+        <div style="flex: 1; min-width: 200px;">
+          <label>Snooze</label>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <span class="chip" onclick="snooze(1)">1 day</span>
+            <span class="chip" onclick="snooze(3)">3 days</span>
+            <span class="chip" onclick="snooze(7)">1 week</span>
+            <span class="chip" onclick="snooze(30)">1 month</span>
+          </div>
+          <div id="fs-snooze-status" class="snooze-status not-snoozed">Not snoozed</div>
+        </div>
+
+        <!-- Actions -->
+        <div style="flex: 1; min-width: 200px;">
+          <label>Actions</label>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+            <button class="btn-secondary btn-sm" onclick="logCatchUp()">Log Catch-up</button>
+            <label class="toggle-switch" title="Notifications">
+              <input type="checkbox" id="fs-notif-toggle" checked onchange="toggleNotifications()">
+              <span class="toggle-slider"></span>
+            </label>
+            <span style="font-size: 12px; color: #64748B;">Notifications</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- State Viewer -->
@@ -113,7 +322,7 @@
     let users = [];
 
     async function api(method, path, body) {
-      const opts = { method, headers: { 'Content-Type': 'application/json' } };
+      const opts = { method, headers: { 'Content-Type': 'application/json' }, cache: 'no-store' };
       if (body) opts.body = JSON.stringify(body);
       const res = await fetch(path, opts);
       const data = await res.json();
@@ -130,7 +339,7 @@
     }
 
     function populateSelects() {
-      const selects = ['f-from', 'f-to', 'a-user'];
+      const selects = ['f-from', 'f-to', 'a-user', 'fs-user', 'fs-friend'];
       for (const id of selects) {
         const sel = document.getElementById(id);
         const val = sel.value;
@@ -139,6 +348,50 @@
         ).join('');
         if (val && users.find(u => u.uid === val)) sel.value = val;
       }
+      // Populate user selector for edit panel
+      const uSel = document.getElementById('u-select');
+      const uVal = uSel.value;
+      uSel.innerHTML = '<option value="">+ New User</option>' + users.map(u =>
+        `<option value="${u.uid}">${u.displayName} (@${u.username})</option>`
+      ).join('');
+      if (uVal && users.find(u => u.uid === uVal)) uSel.value = uVal;
+    }
+
+    function onUserSelect() {
+      const uid = document.getElementById('u-select').value;
+      const authFields = document.getElementById('u-auth-fields');
+      const saveBtn = document.getElementById('u-save-btn');
+      const title = document.getElementById('user-panel-title');
+
+      if (!uid) {
+        // New user mode
+        title.textContent = 'Create User';
+        authFields.style.display = '';
+        saveBtn.textContent = 'Create User';
+        document.getElementById('u-name').value = '';
+        document.getElementById('u-username').value = '';
+        document.getElementById('u-email').value = '';
+        document.getElementById('u-password').value = '';
+        document.getElementById('u-public').checked = false;
+        document.getElementById('u-phone').value = '';
+        document.getElementById('u-facetime').value = '';
+        document.getElementById('u-whatsapp').value = '';
+        return;
+      }
+
+      // Edit mode — populate fields from user data
+      const user = users.find(u => u.uid === uid);
+      if (!user) return;
+
+      title.textContent = 'Edit User';
+      authFields.style.display = 'none';
+      saveBtn.textContent = 'Save Changes';
+      document.getElementById('u-name').value = user.displayName || '';
+      document.getElementById('u-username').value = user.username || '';
+      document.getElementById('u-public').checked = !!user.isPublic;
+      document.getElementById('u-phone').value = user.contactMethods?.phone || '';
+      document.getElementById('u-facetime').value = user.contactMethods?.facetime || '';
+      document.getElementById('u-whatsapp').value = user.contactMethods?.whatsapp || '';
     }
 
     async function loadUsers() {
@@ -148,11 +401,19 @@
       if (users.length === 0) {
         html = '<p class="empty">No users yet. Create one above.</p>';
       } else {
-        html = '<table><tr><th>Name</th><th>Username</th><th>UID</th><th></th></tr>';
+        html = '<table><tr><th>Name</th><th>Username</th><th>Contact</th><th>UID</th><th></th></tr>';
         for (const u of users) {
+          const contacts = [];
+          if (u.contactMethods?.facetime) contacts.push(`FT: ${u.contactMethods.facetime}`);
+          if (u.contactMethods?.phone) contacts.push(`Ph: ${u.contactMethods.phone}`);
+          if (u.contactMethods?.whatsapp) contacts.push(`WA: ${u.contactMethods.whatsapp}`);
+          const contactStr = contacts.length > 0
+            ? contacts.map(c => `<span class="detail-tag" style="background:#EEF2FF;color:#4338CA">${c}</span>`).join(' ')
+            : '<span style="color:#94A3B8">—</span>';
           html += `<tr>
-            <td>${u.displayName}</td>
+            <td>${u.displayName}${u.isPublic ? ' <span class="detail-tag" style="background:#D1FAE5;color:#065F46">public</span>' : ''}</td>
             <td>@${u.username}</td>
+            <td>${contactStr}</td>
             <td class="mono">${u.uid.slice(0, 12)}...</td>
             <td><button class="btn-danger btn-sm" onclick="deleteUser('${u.uid}')">Delete</button></td>
           </tr>`;
@@ -192,12 +453,33 @@
           u.friends.map(f => {
             const friendUser = state.users.find(x => x.uid === f.friendId);
             const name = friendUser ? friendUser.displayName : f.friendId.slice(0, 8);
-            return `${name} <span class="status-badge status-${f.status}">${f.status}</span>`;
-          }).join(', ');
+            let str = `${name} <span class="status-badge status-${f.status}">${f.status}</span>`;
+
+            // Show friend settings details
+            const details = [];
+            if (f.frequencyGoal) {
+              details.push(`<span class="detail-tag status-goal">${f.frequencyGoal}</span>`);
+            }
+            if (f.snoozedUntil && new Date(f.snoozedUntil) > new Date()) {
+              const days = Math.ceil((new Date(f.snoozedUntil) - new Date()) / (1000 * 60 * 60 * 24));
+              details.push(`<span class="detail-tag status-snoozed">snoozed ${days}d</span>`);
+            }
+            if (f.notificationsEnabled === false) {
+              details.push(`<span class="detail-tag" style="background:#F1F5F9;color:#64748B">muted</span>`);
+            }
+            if (f.connectionCount > 0) {
+              details.push(`<span class="detail-tag" style="background:#F0FDFA;color:#0D9488">${f.connectionCount} chats</span>`);
+            }
+            if (details.length > 0) {
+              str += `<div class="detail-row">${details.join('')}</div>`;
+            }
+            return str;
+          }).join('<br>');
+
         const avail = state.availability.find(a => a.userId === u.uid);
         const availStr = avail
           ? `<span class="status-badge status-available">until ${new Date(avail.availableUntil).toLocaleTimeString()}</span>`
-          : '<span style="color:#999">no</span>';
+          : '<span style="color:#94A3B8">no</span>';
         html += `<tr><td>${u.displayName} <span class="mono">@${u.username}</span></td><td>${friendsStr}</td><td>${availStr}</td></tr>`;
       }
       html += '</table>';
@@ -215,20 +497,46 @@
       }
     }
 
-    async function createUser() {
+    async function saveUser() {
+      const uid = document.getElementById('u-select').value;
+      const displayName = document.getElementById('u-name').value;
+      const username = document.getElementById('u-username').value;
+      const isPublic = document.getElementById('u-public').checked;
+      const phone = document.getElementById('u-phone').value.trim();
+      const facetime = document.getElementById('u-facetime').value.trim();
+      const whatsapp = document.getElementById('u-whatsapp').value.trim();
+
+      const contactMethods = {};
+      if (phone) contactMethods.phone = phone;
+      if (facetime) contactMethods.facetime = facetime;
+      if (whatsapp) contactMethods.whatsapp = whatsapp;
+
       try {
-        const data = {
-          displayName: document.getElementById('u-name').value,
-          username: document.getElementById('u-username').value,
-          email: document.getElementById('u-email').value,
-          password: document.getElementById('u-password').value,
-        };
-        await api('POST', '/api/users', data);
-        toast(`Created ${data.displayName}`);
-        document.getElementById('u-name').value = '';
-        document.getElementById('u-username').value = '';
-        document.getElementById('u-email').value = '';
-        document.getElementById('u-password').value = '';
+        if (uid) {
+          // Edit existing user
+          await api('PATCH', `/api/users/${uid}`, { displayName, username, isPublic, contactMethods });
+          toast(`Updated ${displayName}`);
+        } else {
+          // Create new user
+          const email = document.getElementById('u-email').value;
+          const password = document.getElementById('u-password').value;
+          await api('POST', '/api/users', { email, password, displayName, username });
+          // If contact methods or isPublic set, patch immediately
+          if (Object.keys(contactMethods).length > 0 || isPublic) {
+            const created = users; // will refresh below
+            // We need the uid from the creation response — re-fetch users
+            const allUsers = await api('GET', '/api/users');
+            const newUser = allUsers.find(u => u.username === username);
+            if (newUser) {
+              await api('PATCH', `/api/users/${newUser.uid}`, { isPublic, contactMethods });
+            }
+          }
+          toast(`Created ${displayName}`);
+          document.getElementById('u-email').value = '';
+          document.getElementById('u-password').value = '';
+        }
+        document.getElementById('u-select').value = '';
+        onUserSelect();
         refreshAll();
       } catch (e) { toast(e.message, 'error'); }
     }
@@ -299,8 +607,118 @@
       } catch (e) { toast(e.message, 'error'); }
     }
 
+    // ─── Friend Settings ──────────────────────────────────────────────────────
+
+    let currentFriendRecord = null;
+
+    function getFsIds() {
+      return {
+        uid: document.getElementById('fs-user').value,
+        friendId: document.getElementById('fs-friend').value,
+      };
+    }
+
+    async function loadFriendSettings() {
+      currentFriendRecord = null;
+      // Clear UI
+      document.querySelectorAll('.chip[data-goal]').forEach(c => c.classList.remove('active'));
+      const snoozeStatus = document.getElementById('fs-snooze-status');
+      snoozeStatus.className = 'snooze-status not-snoozed';
+      snoozeStatus.innerHTML = 'Not snoozed';
+      document.getElementById('fs-notif-toggle').checked = true;
+
+      const { uid, friendId } = getFsIds();
+      if (!uid || !friendId || uid === friendId) return;
+
+      try {
+        const friends = await api('GET', `/api/users/${uid}/friends`);
+        const record = friends.find(f => f.friendId === friendId);
+        if (!record) return;
+        currentFriendRecord = record;
+
+        // Highlight active goal chip
+        if (record.frequencyGoal) {
+          const chip = document.querySelector(`.chip[data-goal="${record.frequencyGoal}"]`);
+          if (chip) chip.classList.add('active');
+        } else {
+          const chip = document.querySelector('.chip[data-goal="null"]');
+          if (chip) chip.classList.add('active');
+        }
+
+        // Snooze status
+        if (record.snoozedUntil && new Date(record.snoozedUntil) > new Date()) {
+          const days = Math.ceil((new Date(record.snoozedUntil) - new Date()) / (1000 * 60 * 60 * 24));
+          snoozeStatus.className = 'snooze-status snoozed';
+          snoozeStatus.innerHTML = `Snoozed — ${days} day${days !== 1 ? 's' : ''} remaining <button class="btn-warning btn-sm" onclick="unsnooze()">Unsnooze</button>`;
+        } else {
+          snoozeStatus.className = 'snooze-status not-snoozed';
+          snoozeStatus.innerHTML = 'Not snoozed';
+        }
+
+        // Notifications toggle
+        document.getElementById('fs-notif-toggle').checked = record.notificationsEnabled !== false;
+      } catch (e) {
+        // silently ignore if pair not friends yet
+      }
+    }
+
+    // Wire up change events for user/friend selects
+    document.getElementById('fs-user').addEventListener('change', loadFriendSettings);
+    document.getElementById('fs-friend').addEventListener('change', loadFriendSettings);
+
+    async function setGoal(goal) {
+      try {
+        const { uid, friendId } = getFsIds();
+        await api('POST', '/api/friends/frequency-goal', { uid, friendId, goal });
+        toast(goal ? `Goal set: ${goal}` : 'Goal cleared');
+        await refreshAll();
+        await loadFriendSettings();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function snooze(days) {
+      try {
+        const { uid, friendId } = getFsIds();
+        await api('POST', '/api/friends/snooze', { uid, friendId, days });
+        toast(`Snoozed for ${days} day(s)`);
+        await refreshAll();
+        await loadFriendSettings();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function unsnooze() {
+      try {
+        const { uid, friendId } = getFsIds();
+        await api('POST', '/api/friends/unsnooze', { uid, friendId });
+        toast('Unsnoozed');
+        await refreshAll();
+        await loadFriendSettings();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function logCatchUp() {
+      try {
+        const { uid, friendId } = getFsIds();
+        await api('POST', '/api/connections/log', { uid, friendId });
+        toast('Catch-up logged');
+        await refreshAll();
+        await loadFriendSettings();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function toggleNotifications() {
+      try {
+        const { uid, friendId } = getFsIds();
+        await api('POST', '/api/friends/toggle-notifications', { uid, friendId });
+        const nowEnabled = document.getElementById('fs-notif-toggle').checked;
+        toast(nowEnabled ? 'Notifications enabled' : 'Notifications muted');
+        await refreshAll();
+        await loadFriendSettings();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
     // Initial load
-    refreshAll();
+    refreshAll().then(() => loadFriendSettings());
   </script>
 </body>
 </html>

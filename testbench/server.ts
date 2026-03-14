@@ -29,6 +29,8 @@ app.get('/api/users', async (_req, res) => {
         displayName: data.displayName,
         username: data.username,
         photoUrl: data.photoUrl ?? null,
+        isPublic: data.isPublic ?? false,
+        contactMethods: data.contactMethods ?? {},
         createdAt: data.createdAt?.toDate?.() ?? null,
       };
     });
@@ -61,6 +63,34 @@ app.post('/api/users', async (req, res) => {
     });
 
     res.json({ uid: userRecord.uid, displayName, username, email });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/users/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const { displayName, username, isPublic, contactMethods } = req.body;
+
+    const update: Record<string, any> = {};
+    if (displayName !== undefined) update.displayName = displayName;
+    if (username !== undefined) update.username = username;
+    if (isPublic !== undefined) update.isPublic = isPublic;
+    if (contactMethods !== undefined) update.contactMethods = contactMethods;
+
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    await db.collection('users').doc(uid).set(update, { merge: true });
+
+    // Also update Auth displayName if changed
+    if (displayName !== undefined) {
+      await auth.updateUser(uid, { displayName });
+    }
+
+    res.json({ success: true, ...update });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -100,11 +130,19 @@ app.get('/api/users/:uid/friends', async (req, res) => {
   try {
     const { uid } = req.params;
     const snap = await db.collection('users').doc(uid).collection('friends').get();
-    const friends = snap.docs.map((d) => ({
-      friendId: d.id,
-      status: d.data().status,
-      createdAt: d.data().createdAt?.toDate?.() ?? null,
-    }));
+    const friends = snap.docs.map((d) => {
+      const fd = d.data();
+      return {
+        friendId: d.id,
+        status: fd.status,
+        createdAt: fd.createdAt?.toDate?.() ?? null,
+        frequencyGoal: fd.frequencyGoal ?? null,
+        snoozedUntil: fd.snoozedUntil?.toDate?.() ?? null,
+        notificationsEnabled: fd.notificationsEnabled ?? true,
+        connectionCount: fd.connectionCount ?? 0,
+        lastConnectionAt: fd.lastConnectionAt?.toDate?.() ?? null,
+      };
+    });
     res.json(friends);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -131,12 +169,22 @@ app.post('/api/friends/request', async (req, res) => {
     await db.collection('users').doc(fromUid).collection('friends').doc(toUid).set({
       status: 'pending_sent',
       createdAt: FieldValue.serverTimestamp(),
+      lastConnectionAt: null,
+      connectionCount: 0,
+      frequencyGoal: null,
+      snoozedUntil: null,
+      notificationsEnabled: true,
     });
 
     // Receiver side
     await db.collection('users').doc(toUid).collection('friends').doc(fromUid).set({
       status: 'pending_received',
       createdAt: FieldValue.serverTimestamp(),
+      lastConnectionAt: null,
+      connectionCount: 0,
+      frequencyGoal: null,
+      snoozedUntil: null,
+      notificationsEnabled: true,
     });
 
     res.json({ success: true });
@@ -176,6 +224,121 @@ app.post('/api/friends/decline', async (req, res) => {
 
     await db.collection('users').doc(uid).collection('friends').doc(friendId).delete();
     await db.collection('users').doc(friendId).collection('friends').doc(uid).delete();
+
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Friend Settings ────────────────────────────────────────────────────────
+
+app.post('/api/friends/frequency-goal', async (req, res) => {
+  try {
+    const { uid, friendId, goal } = req.body;
+    if (!uid || !friendId) {
+      return res.status(400).json({ error: 'uid and friendId are required' });
+    }
+    await db.collection('users').doc(uid).collection('friends').doc(friendId).set(
+      { frequencyGoal: goal ?? null },
+      { merge: true }
+    );
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/friends/snooze', async (req, res) => {
+  try {
+    const { uid, friendId, days } = req.body;
+    if (!uid || !friendId || !days) {
+      return res.status(400).json({ error: 'uid, friendId, and days are required' });
+    }
+    const until = new Date();
+    until.setDate(until.getDate() + days);
+    await db.collection('users').doc(uid).collection('friends').doc(friendId).set(
+      { snoozedUntil: Timestamp.fromDate(until) },
+      { merge: true }
+    );
+    res.json({ success: true, snoozedUntil: until.toISOString() });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/friends/unsnooze', async (req, res) => {
+  try {
+    const { uid, friendId } = req.body;
+    if (!uid || !friendId) {
+      return res.status(400).json({ error: 'uid and friendId are required' });
+    }
+    await db.collection('users').doc(uid).collection('friends').doc(friendId).set(
+      { snoozedUntil: null },
+      { merge: true }
+    );
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/friends/toggle-notifications', async (req, res) => {
+  try {
+    const { uid, friendId } = req.body;
+    if (!uid || !friendId) {
+      return res.status(400).json({ error: 'uid and friendId are required' });
+    }
+    const friendDoc = await db.collection('users').doc(uid).collection('friends').doc(friendId).get();
+    const current = friendDoc.data()?.notificationsEnabled ?? true;
+    await db.collection('users').doc(uid).collection('friends').doc(friendId).set(
+      { notificationsEnabled: !current },
+      { merge: true }
+    );
+    res.json({ success: true, notificationsEnabled: !current });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Connections ─────────────────────────────────────────────────────────────
+
+app.post('/api/connections/log', async (req, res) => {
+  try {
+    const { uid, friendId } = req.body;
+    if (!uid || !friendId) {
+      return res.status(400).json({ error: 'uid and friendId are required' });
+    }
+
+    const now = Timestamp.now();
+
+    // Create connection record
+    await db.collection('connections').add({
+      userIds: [uid, friendId],
+      timestamp: now,
+      type: 'manual',
+      reportedBy: uid,
+    });
+
+    // Update both sides' friend records
+    const batch = db.batch();
+    const userFriendRef = db.collection('users').doc(uid).collection('friends').doc(friendId);
+    const friendFriendRef = db.collection('users').doc(friendId).collection('friends').doc(uid);
+
+    const userFriendDoc = await userFriendRef.get();
+    const friendFriendDoc = await friendFriendRef.get();
+
+    batch.set(userFriendRef, {
+      lastConnectionAt: now,
+      connectionCount: (userFriendDoc.data()?.connectionCount || 0) + 1,
+    }, { merge: true });
+
+    batch.set(friendFriendRef, {
+      lastConnectionAt: now,
+      connectionCount: (friendFriendDoc.data()?.connectionCount || 0) + 1,
+    }, { merge: true });
+
+    await batch.commit();
 
     res.json({ success: true });
   } catch (err: any) {
@@ -244,14 +407,24 @@ app.get('/api/state', async (_req, res) => {
       usersSnap.docs.map(async (d) => {
         const data = d.data();
         const friendsSnap = await d.ref.collection('friends').get();
-        const friends = friendsSnap.docs.map((f) => ({
-          friendId: f.id,
-          status: f.data().status,
-        }));
+        const friends = friendsSnap.docs.map((f) => {
+          const fd = f.data();
+          return {
+            friendId: f.id,
+            status: fd.status,
+            frequencyGoal: fd.frequencyGoal ?? null,
+            snoozedUntil: fd.snoozedUntil?.toDate?.() ?? null,
+            notificationsEnabled: fd.notificationsEnabled ?? true,
+            connectionCount: fd.connectionCount ?? 0,
+            lastConnectionAt: fd.lastConnectionAt?.toDate?.() ?? null,
+          };
+        });
         return {
           uid: d.id,
           displayName: data.displayName,
           username: data.username,
+          isPublic: data.isPublic ?? false,
+          contactMethods: data.contactMethods ?? {},
           friends,
         };
       })
