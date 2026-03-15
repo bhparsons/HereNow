@@ -104,9 +104,16 @@ export function AvailableFriendCard({ friend, tier, onPress }: Props) {
               In a conversation
             </Text>
           ) : (
-            <Text variant="caption" style={{ color: colors.available }} className="mt-0.5">
-              Available for {timeLeft}
-            </Text>
+            <View>
+              <Text variant="caption" style={{ color: colors.available }} className="mt-0.5">
+                Available for {timeLeft}
+              </Text>
+              {friend.statusMessage && (
+                <Text variant="footnote" className="text-ink-300 mt-0.5" numberOfLines={1}>
+                  "{friend.statusMessage}"
+                </Text>
+              )}
+            </View>
           )}
         </View>
         {isBusy ? (

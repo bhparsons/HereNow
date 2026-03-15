@@ -5,6 +5,7 @@ import {
   setAvailable,
   setUnavailable,
   setInConversation,
+  updateStatusMessage,
 } from '../services/availability';
 import { getUserProfile } from '../services/users';
 import { Availability, AvailableFriend, FriendRecord } from '../types';
@@ -44,9 +45,9 @@ export function useMyAvailability(userId: string | undefined) {
   }, [availability, userId]);
 
   const goAvailable = useCallback(
-    async (durationMinutes: number) => {
+    async (durationMinutes: number, statusMessage?: string) => {
       if (!userId) return;
-      await setAvailable(userId, durationMinutes);
+      await setAvailable(userId, durationMinutes, statusMessage);
     },
     [userId]
   );
@@ -64,6 +65,14 @@ export function useMyAvailability(userId: string | undefined) {
     [userId]
   );
 
+  const updateStatus = useCallback(
+    async (statusMessage: string | null) => {
+      if (!userId) return;
+      await updateStatusMessage(userId, statusMessage);
+    },
+    [userId]
+  );
+
   return {
     isAvailable: !!availability,
     availability,
@@ -71,6 +80,7 @@ export function useMyAvailability(userId: string | undefined) {
     goAvailable,
     goUnavailable,
     toggleInConversation,
+    updateStatus,
   };
 }
 
@@ -121,6 +131,7 @@ export function useAvailableFriends(
               availableUntil: avail.availableUntil,
               startedAt: avail.startedAt,
               inConversation: avail.inConversation || false,
+              statusMessage: avail.statusMessage,
             });
           }
         }
