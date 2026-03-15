@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from './Avatar';
 import { Text } from './ui/Text';
 import { colors } from '../theme/tokens';
@@ -23,6 +24,7 @@ interface FriendRowProps {
   photoUrl: string | null | undefined;
   lastConnectedText?: string;
   isOnline?: boolean;
+  isSnoozed?: boolean;
   tier?: number;
   onPress?: () => void;
 }
@@ -32,6 +34,7 @@ export function FriendRow({
   photoUrl,
   lastConnectedText,
   isOnline,
+  isSnoozed,
   tier,
   onPress,
 }: FriendRowProps) {
@@ -75,6 +78,9 @@ export function FriendRow({
           </Text>
         ) : null}
       </View>
+      {isSnoozed && (
+        <Ionicons name="moon-outline" size={18} color={colors.busy} style={{ marginLeft: 8 }} />
+      )}
     </Pressable>
   );
 }

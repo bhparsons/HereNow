@@ -158,7 +158,9 @@ export default function HomeScreen() {
   }, [availableFriends, snoozedFriendIds, query]);
 
   const filteredOfflineFriends = useMemo(() => {
-    const offline = sortedFriends.filter((f) => !onlineFriendIds.has(f.friendId));
+    const offline = sortedFriends.filter(
+      (f) => !onlineFriendIds.has(f.friendId) || snoozedFriendIds.has(f.friendId)
+    );
     if (!query) return offline;
     return offline.filter((f) => {
       const profile = friendProfiles.get(f.friendId);
@@ -166,7 +168,7 @@ export default function HomeScreen() {
       const username = (profile?.username || '').toLowerCase();
       return name.includes(query) || username.includes(query);
     });
-  }, [sortedFriends, onlineFriendIds, friendProfiles, query]);
+  }, [sortedFriends, onlineFriendIds, snoozedFriendIds, friendProfiles, query]);
 
   const getLastConnectedText = (friend: FriendRecord): string =>
     formatLastConnected(friend.lastConnectionAt, { prefix: true });
@@ -190,8 +192,8 @@ export default function HomeScreen() {
     setShowDurationPicker(true);
   };
 
-  // Search bar component (reused in both states)
-  const SearchBar = () => (
+  // Search bar — memoized JSX element to preserve TextInput identity across re-renders
+  const searchBar = useMemo(() => (
     <View
       className="flex-row items-center mb-3 rounded-4xl px-3.5 py-2.5"
       style={{
@@ -215,7 +217,7 @@ export default function HomeScreen() {
         </Pressable>
       )}
     </View>
-  );
+  ), [searchQuery]);
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -398,7 +400,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-        <SearchBar />
+        {searchBar}
 
         <ScrollView
           className="flex-1"
@@ -449,7 +451,8 @@ export default function HomeScreen() {
                 name={profile?.displayName || 'User'}
                 photoUrl={profile?.photoUrl}
                 lastConnectedText={getLastConnectedText(friend)}
-                isOnline={onlineFriendIds.has(friend.friendId)}
+                isOnline={!snoozedFriendIds.has(friend.friendId) && onlineFriendIds.has(friend.friendId)}
+                isSnoozed={snoozedFriendIds.has(friend.friendId)}
                 tier={tierMap.get(friend.friendId)}
                 onPress={() => setSelectedFriendId(friend.friendId)}
               />
