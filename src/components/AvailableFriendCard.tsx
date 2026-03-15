@@ -32,9 +32,10 @@ function isValidFaceTimeContact(value: string): boolean {
 interface Props {
   friend: AvailableFriend;
   tier?: number;
+  onPress?: () => void;
 }
 
-export function AvailableFriendCard({ friend, tier }: Props) {
+export function AvailableFriendCard({ friend, tier, onPress }: Props) {
   const [timeLeft, setTimeLeft] = useState('');
   const [elapsedText, setElapsedText] = useState('');
 
@@ -69,7 +70,8 @@ export function AvailableFriendCard({ friend, tier }: Props) {
   };
 
   return (
-    <View
+    <Pressable
+      onPress={onPress}
       className="p-4 rounded-2xl mb-2"
       style={{
         backgroundColor: isBusy ? colors.glass.muted : colors.glass.card,
@@ -144,6 +146,6 @@ export function AvailableFriendCard({ friend, tier }: Props) {
         )}
       </View>
 
-    </View>
+    </Pressable>
   );
 }

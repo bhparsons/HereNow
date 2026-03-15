@@ -64,7 +64,7 @@ export default function HomeScreen() {
     goUnavailable,
     toggleInConversation,
   } = useMyAvailability(firebaseUser?.uid);
-  const { availableFriends } = useAvailableFriends(friendIds, acceptedFriends);
+  const { availableFriends } = useAvailableFriends(isAvailable ? friendIds : [], acceptedFriends);
 
   const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [showRequestsSheet, setShowRequestsSheet] = useState(false);
@@ -132,14 +132,24 @@ export default function HomeScreen() {
 
   const query = searchQuery.trim().toLowerCase();
 
+  const snoozedFriendIds = useMemo(() => {
+    const now = new Date();
+    return new Set(
+      acceptedFriends
+        .filter((f) => f.snoozedUntil && f.snoozedUntil > now)
+        .map((f) => f.friendId)
+    );
+  }, [acceptedFriends]);
+
   const filteredAvailableFriends = useMemo(() => {
-    if (!query) return availableFriends;
-    return availableFriends.filter(
+    const unsnoozed = availableFriends.filter((f) => !snoozedFriendIds.has(f.userId));
+    if (!query) return unsnoozed;
+    return unsnoozed.filter(
       (f) =>
         f.displayName.toLowerCase().includes(query) ||
         f.username.toLowerCase().includes(query)
     );
-  }, [availableFriends, query]);
+  }, [availableFriends, snoozedFriendIds, query]);
 
   const filteredOfflineFriends = useMemo(() => {
     const offline = sortedFriends.filter((f) => !onlineFriendIds.has(f.friendId));
@@ -152,16 +162,14 @@ export default function HomeScreen() {
     });
   }, [sortedFriends, onlineFriendIds, friendProfiles, query]);
 
-  const offlinePreviewFriends = useMemo(() => {
-    if (query) {
-      return sortedFriends.filter((f) => {
-        const profile = friendProfiles.get(f.friendId);
-        const name = (profile?.displayName || '').toLowerCase();
-        const username = (profile?.username || '').toLowerCase();
-        return name.includes(query) || username.includes(query);
-      });
-    }
-    return sortedFriends.slice(0, 5);
+  const filteredAllFriends = useMemo(() => {
+    if (!query) return sortedFriends;
+    return sortedFriends.filter((f) => {
+      const profile = friendProfiles.get(f.friendId);
+      const name = (profile?.displayName || '').toLowerCase();
+      const username = (profile?.username || '').toLowerCase();
+      return name.includes(query) || username.includes(query);
+    });
   }, [sortedFriends, friendProfiles, query]);
 
   const getLastConnectedText = (friend: FriendRecord): string =>
@@ -355,6 +363,7 @@ export default function HomeScreen() {
                   key={friend.userId}
                   friend={friend}
                   tier={tierMap.get(friend.userId)}
+                  onPress={() => setSelectedFriendId(friend.userId)}
                 />
               ))}
 
@@ -478,7 +487,7 @@ export default function HomeScreen() {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              {offlinePreviewFriends.map((friend) => {
+              {filteredAllFriends.map((friend) => {
                 const profile = friendProfiles.get(friend.friendId);
                 return (
                   <FriendRow
@@ -486,7 +495,7 @@ export default function HomeScreen() {
                     name={profile?.displayName || 'User'}
                     photoUrl={profile?.photoUrl}
                     lastConnectedText={getLastConnectedText(friend)}
-                    isOnline={onlineFriendIds.has(friend.friendId)}
+                    isOnline={false}
                     tier={tierMap.get(friend.friendId)}
                     onPress={() => setSelectedFriendId(friend.friendId)}
                   />
@@ -501,7 +510,7 @@ export default function HomeScreen() {
                 </View>
               )}
 
-              {acceptedFriends.length > 0 && offlinePreviewFriends.length === 0 && query && (
+              {acceptedFriends.length > 0 && filteredAllFriends.length === 0 && query && (
                 <View className="items-center py-8">
                   <Text variant="body" className="text-ink-300 text-center">
                     No friends match "{searchQuery}"
