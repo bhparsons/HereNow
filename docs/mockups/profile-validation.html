@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HereNow — Profile Validation Mockup</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1E293B;
+      color: #F8FAFC;
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      padding: 40px 20px;
+      flex-wrap: wrap;
+    }
+    .phone-frame {
+      width: 375px;
+      min-height: 700px;
+      background: #F8FAFC;
+      border-radius: 40px;
+      padding: 60px 24px 40px;
+      color: #0F172A;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+      position: relative;
+      overflow: hidden;
+    }
+    .phone-frame::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 150px; height: 30px;
+      background: #1E293B;
+      border-radius: 0 0 20px 20px;
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      font-size: 15px;
+      color: #64748B;
+      margin-bottom: 28px;
+    }
+    .section-header {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #64748B;
+      margin-top: 20px;
+      margin-bottom: 4px;
+    }
+    .section-hint {
+      font-size: 12px;
+      color: #94A3B8;
+      margin-bottom: 12px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #0F172A;
+      margin-bottom: 6px;
+    }
+    .field {
+      margin-bottom: 16px;
+    }
+    input, .readonly-field {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 2px solid #F1F5F9;
+      background: #FFFFFF;
+      font-size: 16px;
+      color: #0F172A;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus {
+      border-color: #14B8A6;
+    }
+    .readonly-field {
+      background: #F8FAFC;
+      color: #64748B;
+      cursor: default;
+    }
+    .hint {
+      font-size: 12px;
+      color: #94A3B8;
+      margin-top: 4px;
+    }
+    .chip-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .chip {
+      padding: 8px 18px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 2px solid #F1F5F9;
+      background: #FFFFFF;
+      color: #0F172A;
+      transition: all 0.15s;
+    }
+    .chip.active {
+      background: #6366F1;
+      border-color: #6366F1;
+      color: #FFFFFF;
+    }
+    .chip:hover:not(.active) {
+      border-color: #E2E8F0;
+      background: #F8FAFC;
+    }
+    .btn-primary {
+      width: 100%;
+      padding: 16px;
+      border-radius: 16px;
+      background: #6366F1;
+      color: #FFFFFF;
+      font-size: 17px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      margin-top: 24px;
+      transition: background 0.15s;
+    }
+    .btn-primary:hover {
+      background: #4F46E5;
+    }
+    .sign-out {
+      text-align: center;
+      margin-top: 12px;
+      color: #EF4444;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .screen-label {
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #94A3B8;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Setup Profile Screen -->
+  <div class="phone-frame">
+    <div class="screen-label">Setup Profile</div>
+    <h1>Set Up Your Profile</h1>
+    <p class="subtitle">Choose a display name and username</p>
+
+    <div class="field">
+      <label>Email</label>
+      <div class="readonly-field">blake@example.com</div>
+    </div>
+
+    <div class="field">
+      <label>Display Name</label>
+      <input type="text" value="Blake Parsons" />
+    </div>
+
+    <div class="field">
+      <label>Username</label>
+      <input type="text" value="blake_p" placeholder="your_username" />
+      <div class="hint">Friends can find you with this username</div>
+    </div>
+
+    <div class="field">
+      <label>Phone Number</label>
+      <input type="tel" placeholder="+1 (555) 123-4567" value="+1 (555) 867-5309" />
+    </div>
+
+    <div class="field">
+      <label>FaceTime Contact</label>
+      <div class="hint" style="margin-bottom: 8px;">How friends will FaceTime you</div>
+      <div class="chip-row">
+        <span class="chip active" onclick="selectChip(this, 'setup')">Email</span>
+        <span class="chip" onclick="selectChip(this, 'setup')">Phone</span>
+        <span class="chip" onclick="selectChip(this, 'setup')">Other</span>
+      </div>
+      <div class="readonly-field" id="setup-facetime-display">blake@example.com</div>
+    </div>
+
+    <button class="btn-primary">Continue</button>
+  </div>
+
+  <!-- Profile (Edit) Screen -->
+  <div class="phone-frame">
+    <div class="screen-label">Profile / Settings</div>
+    <h1 style="font-size: 22px;">Profile</h1>
+    <p class="subtitle" style="margin-bottom: 20px;">Edit your profile details</p>
+
+    <div class="field">
+      <label>Email</label>
+      <div class="readonly-field">blake@example.com</div>
+    </div>
+
+    <div class="field">
+      <label>Display Name</label>
+      <input type="text" value="Blake Parsons" />
+    </div>
+
+    <div class="field">
+      <label>Username</label>
+      <input type="text" value="blake_p" />
+    </div>
+
+    <div class="section-header">Contact Methods</div>
+    <div class="section-hint">Let friends call you directly when you are online</div>
+
+    <div class="field">
+      <label>Phone Number</label>
+      <input type="tel" value="+1 (555) 867-5309" placeholder="+1 (555) 123-4567" />
+    </div>
+
+    <div class="field">
+      <label>FaceTime Contact</label>
+      <div class="hint" style="margin-bottom: 8px;">How friends will FaceTime you</div>
+      <div class="chip-row">
+        <span class="chip" onclick="selectChip(this, 'profile')">Email</span>
+        <span class="chip active" onclick="selectChip(this, 'profile')">Phone</span>
+        <span class="chip" onclick="selectChip(this, 'profile')">Other</span>
+      </div>
+      <div class="readonly-field" id="profile-facetime-display">+1 (555) 867-5309</div>
+    </div>
+
+    <button class="btn-primary">Save Changes</button>
+    <div class="sign-out">Sign Out</div>
+  </div>
+
+  <script>
+    function selectChip(el, screen) {
+      const row = el.parentElement;
+      row.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+
+      const displayId = screen + '-facetime-display';
+      const display = document.getElementById(displayId);
+      const label = el.textContent.trim();
+
+      if (label === 'Email') {
+        display.outerHTML = '<div class="readonly-field" id="' + displayId + '">blake@example.com</div>';
+      } else if (label === 'Phone') {
+        display.outerHTML = '<div class="readonly-field" id="' + displayId + '">+1 (555) 867-5309</div>';
+      } else {
+        display.outerHTML = '<input id="' + displayId + '" type="text" placeholder="email or phone number" />';
+      }
+    }
+  </script>
+</body>
+</html>
