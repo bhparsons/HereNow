@@ -64,7 +64,7 @@ export default function HomeScreen() {
     goUnavailable,
     toggleInConversation,
   } = useMyAvailability(firebaseUser?.uid);
-  const { availableFriends } = useAvailableFriends(friendIds, acceptedFriends);
+  const { availableFriends } = useAvailableFriends(isAvailable ? friendIds : [], acceptedFriends);
 
   const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [showRequestsSheet, setShowRequestsSheet] = useState(false);
@@ -131,14 +131,24 @@ export default function HomeScreen() {
 
   const query = searchQuery.trim().toLowerCase();
 
+  const snoozedFriendIds = useMemo(() => {
+    const now = new Date();
+    return new Set(
+      acceptedFriends
+        .filter((f) => f.snoozedUntil && f.snoozedUntil > now)
+        .map((f) => f.friendId)
+    );
+  }, [acceptedFriends]);
+
   const filteredAvailableFriends = useMemo(() => {
-    if (!query) return availableFriends;
-    return availableFriends.filter(
+    const unsnoozed = availableFriends.filter((f) => !snoozedFriendIds.has(f.userId));
+    if (!query) return unsnoozed;
+    return unsnoozed.filter(
       (f) =>
         f.displayName.toLowerCase().includes(query) ||
         f.username.toLowerCase().includes(query)
     );
-  }, [availableFriends, query]);
+  }, [availableFriends, snoozedFriendIds, query]);
 
   const filteredOfflineFriends = useMemo(() => {
     const offline = sortedFriends.filter((f) => !onlineFriendIds.has(f.friendId));

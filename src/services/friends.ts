@@ -145,11 +145,19 @@ export async function snoozeFriend(
   friendId: string,
   untilDate: Date
 ): Promise<void> {
-  await setDoc(
-    doc(db, 'users', userId, 'friends', friendId),
-    { snoozedUntil: Timestamp.fromDate(untilDate) },
-    { merge: true }
-  );
+  const snoozedUntil = Timestamp.fromDate(untilDate);
+  await Promise.all([
+    setDoc(
+      doc(db, 'users', userId, 'friends', friendId),
+      { snoozedUntil },
+      { merge: true }
+    ),
+    setDoc(
+      doc(db, 'users', friendId, 'friends', userId),
+      { snoozedUntil },
+      { merge: true }
+    ),
+  ]);
 }
 
 /**
@@ -159,11 +167,18 @@ export async function unsnoozeFriend(
   userId: string,
   friendId: string
 ): Promise<void> {
-  await setDoc(
-    doc(db, 'users', userId, 'friends', friendId),
-    { snoozedUntil: null },
-    { merge: true }
-  );
+  await Promise.all([
+    setDoc(
+      doc(db, 'users', userId, 'friends', friendId),
+      { snoozedUntil: null },
+      { merge: true }
+    ),
+    setDoc(
+      doc(db, 'users', friendId, 'friends', userId),
+      { snoozedUntil: null },
+      { merge: true }
+    ),
+  ]);
 }
 
 /**
