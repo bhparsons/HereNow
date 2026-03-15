@@ -52,6 +52,8 @@ export interface Availability {
   // Phase 5: In a conversation
   inConversation?: boolean;
   inConversationWith?: string | null;
+  // Status message
+  statusMessage?: string;
 }
 
 export interface AvailableFriend {
@@ -65,6 +67,8 @@ export interface AvailableFriend {
   tier?: number;
   // Phase 5: Conversation status
   inConversation?: boolean;
+  // Status message
+  statusMessage?: string;
   // Phase 6: Contact methods for call initiation
   contactMethods?: {
     phone?: string;
