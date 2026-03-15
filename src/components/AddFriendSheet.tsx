@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   TextInput,
@@ -8,13 +8,17 @@ import {
   ScrollView,
   StyleSheet,
   Modal,
+  Platform,
+  Keyboard,
+  Dimensions,
 } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as Clipboard from 'expo-clipboard';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { useAuth } from '../hooks/useAuth';
-import { findUserByUsername } from '../services/users';
+import { searchUsersByPrefix } from '../services/users';
 import { sendFriendRequest } from '../services/friends';
 import { Avatar } from './Avatar';
 import { Button } from './ui/Button';
@@ -37,12 +41,16 @@ export function AddFriendSheet({ visible, onClose, onNavigateToFriend }: Props) 
   const [activeTab, setActiveTab] = useState<Tab>('share');
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResult, setSearchResult] = useState<User | null>(null);
+  const [searchResults, setSearchResults] = useState<User[]>([]);
   const [searching, setSearching] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const deepLink = userProfile?.username
     ? Linking.createURL(`friend/${userProfile.username}`)
@@ -60,36 +68,69 @@ export function AddFriendSheet({ visible, onClose, onNavigateToFriend }: Props) 
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSearch = async () => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return;
+  const handleSearch = useCallback(async (query: string) => {
+    const trimmed = query.trim().toLowerCase();
+    if (!trimmed) {
+      setSearchResults([]);
+      return;
+    }
 
     try {
       setSearching(true);
-      setSearchResult(null);
-      setSent(false);
-      const user = await findUserByUsername(query);
-      if (!user) {
-        Alert.alert('Not Found', `No user with username "${query}"`);
-      } else if (user.uid === firebaseUser?.uid) {
-        Alert.alert('Oops', "That's you!");
-      } else {
-        setSearchResult(user);
-      }
+      const users = await searchUsersByPrefix(trimmed);
+      const filtered = users.filter((u) => u.uid !== firebaseUser?.uid);
+      setSearchResults(filtered);
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Search failed');
     } finally {
       setSearching(false);
     }
-  };
+  }, [firebaseUser?.uid]);
 
-  const handleSendRequest = async () => {
-    if (!firebaseUser || !searchResult) return;
+  const handleChangeText = useCallback((text: string) => {
+    setSearchQuery(text);
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    debounceTimer.current = setTimeout(() => {
+      handleSearch(text);
+    }, 300);
+  }, [handleSearch]);
+
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, []);
+
+  // Listen for keyboard show/hide to dynamically resize the sheet
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const handleSendRequest = async (user: User) => {
+    if (!firebaseUser) return;
 
     try {
-      await sendFriendRequest(firebaseUser.uid, searchResult.uid);
-      setSent(true);
-      Alert.alert('Sent!', `Friend request sent to ${searchResult.displayName}`);
+      await sendFriendRequest(firebaseUser.uid, user.uid);
+      setSentIds((prev) => new Set(prev).add(user.uid));
+      Alert.alert('Sent!', `Friend request sent to ${user.displayName}`);
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to send request');
     }
@@ -162,54 +203,109 @@ export function AddFriendSheet({ visible, onClose, onNavigateToFriend }: Props) 
     );
   };
 
+  const handleExitSearch = () => {
+    Keyboard.dismiss();
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchFocused(false);
+  };
+
   const renderSearchTab = () => (
-    <View>
-      <View className="flex-row gap-2">
+    <View className={searchFocused ? 'flex-1' : ''}>
+      <View className={`flex-row gap-2 ${searchFocused ? 'items-center' : ''}`}>
+        {searchFocused && (
+          <Pressable onPress={handleExitSearch} className="py-2 pr-1">
+            <Ionicons name="arrow-back" size={24} color={colors.ink.DEFAULT} />
+          </Pressable>
+        )}
         <TextInput
           className="flex-1 bg-background rounded-2xl px-4 py-3.5 text-body text-ink border-3 border-ink-100"
           placeholder="Enter username"
           value={searchQuery}
-          onChangeText={setSearchQuery}
+          onChangeText={handleChangeText}
           autoCapitalize="none"
           autoCorrect={false}
-          onSubmitEditing={handleSearch}
+          autoComplete="off"
+          textContentType="none"
+          onFocus={() => setSearchFocused(true)}
+          onSubmitEditing={() => handleSearch(searchQuery)}
+          returnKeyType="search"
           placeholderTextColor={colors.ink[300]}
         />
-        <Button
-          variant="primary"
-          size="md"
-          label={searching ? '...' : 'Search'}
-          onPress={handleSearch}
-          disabled={searching}
-        />
+        {!searchFocused && (
+          <Button
+            variant="primary"
+            size="md"
+            label={searching ? '...' : 'Search'}
+            onPress={() => handleSearch(searchQuery)}
+            disabled={searching}
+          />
+        )}
       </View>
 
-      <ScrollView
-        className="mt-3"
-        contentContainerStyle={{ paddingBottom: 16 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {searchResult ? (
-          <View className="flex-row items-center bg-background p-3.5 rounded-2xl w-full">
-            <Avatar photoUrl={searchResult.photoUrl} name={searchResult.displayName} size={48} />
-            <View className="flex-1 ml-3">
-              <Text variant="body-medium">{searchResult.displayName}</Text>
-              <Text variant="caption" className="text-ink-400">@{searchResult.username}</Text>
-            </View>
-            {sent ? (
-              <Text variant="button-small" className="text-available">Sent</Text>
+      {searchFocused ? (
+        <Pressable className="flex-1" onPress={() => Keyboard.dismiss()}>
+          <ScrollView
+            className="mt-3"
+            contentContainerStyle={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight : 16 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {searchResults.length > 0 ? (
+              searchResults.map((user) => (
+                <View key={user.uid} className="flex-row items-center bg-background p-3.5 rounded-2xl w-full mb-2">
+                  <Avatar photoUrl={user.photoUrl} name={user.displayName} size={48} />
+                  <View className="flex-1 ml-3">
+                    <Text variant="body-medium">{user.displayName}</Text>
+                    <Text variant="caption" className="text-ink-400">@{user.username}</Text>
+                  </View>
+                  {sentIds.has(user.uid) ? (
+                    <Text variant="button-small" className="text-available">Sent</Text>
+                  ) : (
+                    <Button variant="primary" size="sm" label="Add" onPress={() => handleSendRequest(user)} />
+                  )}
+                </View>
+              ))
             ) : (
-              <Button variant="primary" size="sm" label="Add" onPress={handleSendRequest} />
+              <View className="items-center py-10">
+                <Text variant="caption" className="text-ink-300 text-center">
+                  Search results will appear here
+                </Text>
+              </View>
             )}
-          </View>
-        ) : (
-          <View className="items-center py-10">
-            <Text variant="caption" className="text-ink-300 text-center">
-              Search results will appear here
-            </Text>
-          </View>
-        )}
-      </ScrollView>
+          </ScrollView>
+        </Pressable>
+      ) : (
+        <ScrollView
+          className="mt-3"
+          contentContainerStyle={{ paddingBottom: 16 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {searchResults.length > 0 ? (
+            searchResults.map((user) => (
+              <View key={user.uid} className="flex-row items-center bg-background p-3.5 rounded-2xl w-full mb-2">
+                <Avatar photoUrl={user.photoUrl} name={user.displayName} size={48} />
+                <View className="flex-1 ml-3">
+                  <Text variant="body-medium">{user.displayName}</Text>
+                  <Text variant="caption" className="text-ink-400">@{user.username}</Text>
+                </View>
+                {sentIds.has(user.uid) ? (
+                  <Text variant="button-small" className="text-available">Sent</Text>
+                ) : (
+                  <Button variant="primary" size="sm" label="Add" onPress={() => handleSendRequest(user)} />
+                )}
+              </View>
+            ))
+          ) : (
+            <View className="items-center py-10">
+              <Text variant="caption" className="text-ink-300 text-center">
+                Search results will appear here
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 
@@ -222,35 +318,45 @@ export function AddFriendSheet({ visible, onClose, onNavigateToFriend }: Props) 
       >
         <Pressable
           className="bg-surface rounded-t-3xl px-5 pt-3"
-          style={{ maxHeight: '85%', paddingBottom: Math.max(insets.bottom, 20) + 10 }}
+          style={{
+            ...(searchFocused
+              ? { height: '90%' }
+              : { maxHeight: '85%' }),
+            paddingBottom: Math.max(insets.bottom, 20) + 10,
+          }}
           onPress={(e) => e.stopPropagation()}
         >
           {/* Close handle */}
           <Pressable onPress={onClose} className="self-center mb-3 p-1">
             <View className="w-9 h-1 rounded-full bg-ink-200" />
           </Pressable>
-          <Text variant="h2" className="text-center mb-4">Add Friend</Text>
 
-          {/* Tab selector */}
-          <View className="flex-row bg-background rounded-2xl p-1 mb-5">
-            {(['share', 'scan', 'search'] as Tab[]).map((tab) => (
-              <Pressable
-                key={tab}
-                className={`flex-1 py-2.5 items-center rounded-xl ${
-                  activeTab === tab ? 'bg-surface' : ''
-                }`}
-                style={activeTab === tab ? { shadowColor: '#000', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 1 }, shadowRadius: 2 } : undefined}
-                onPress={() => setActiveTab(tab)}
-              >
-                <Text
-                  variant="button-small"
-                  className={activeTab === tab ? 'text-secondary' : 'text-ink-400'}
-                >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          {!searchFocused && (
+            <>
+              <Text variant="h2" className="text-center mb-4">Add Friend</Text>
+
+              {/* Tab selector */}
+              <View className="flex-row bg-background rounded-2xl p-1 mb-5">
+                {(['share', 'scan', 'search'] as Tab[]).map((tab) => (
+                  <Pressable
+                    key={tab}
+                    className={`flex-1 py-2.5 items-center rounded-xl ${
+                      activeTab === tab ? 'bg-surface' : ''
+                    }`}
+                    style={activeTab === tab ? { shadowColor: '#000', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 1 }, shadowRadius: 2 } : undefined}
+                    onPress={() => setActiveTab(tab)}
+                  >
+                    <Text
+                      variant="button-small"
+                      className={activeTab === tab ? 'text-secondary' : 'text-ink-400'}
+                    >
+                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          )}
 
           {activeTab === 'share' && renderShareTab()}
           {activeTab === 'scan' && renderScanTab()}

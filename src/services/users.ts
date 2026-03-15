@@ -8,6 +8,7 @@ import {
   where,
   getDocs,
   serverTimestamp,
+  limit as firestoreLimit,
 } from 'firebase/firestore';
 import {
   getStorage,
@@ -84,6 +85,31 @@ export async function findUserByUsername(
     createdAt: data.createdAt?.toDate() || new Date(),
     contactMethods: data.contactMethods,
   };
+}
+
+export async function searchUsersByPrefix(prefix: string): Promise<User[]> {
+  if (!prefix) return [];
+  const q = query(
+    collection(db, 'users'),
+    where('username', '>=', prefix),
+    where('username', '<', prefix + '\uf8ff'),
+    firestoreLimit(10)
+  );
+  const snap = await getDocs(q);
+  return snap.docs
+    .map((userDoc) => {
+      const data = userDoc.data();
+      return {
+        uid: userDoc.id,
+        displayName: data.displayName,
+        username: data.username,
+        photoUrl: data.photoUrl,
+        isPublic: data.isPublic ?? true,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        contactMethods: data.contactMethods,
+      } as User;
+    })
+    .filter((user) => user.isPublic !== false);
 }
 
 /**
