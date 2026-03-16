@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { subscribeToAuthState } from '../services/auth';
 import { getUserProfile } from '../services/users';
+import { registerForPushNotifications } from '../services/notifications';
 import { User } from '../types';
 
 interface AuthContextType {
@@ -49,6 +50,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (firebaseUser) {
       refreshProfile();
+    }
+  }, [firebaseUser?.uid]);
+
+  // Register for push notifications when authenticated
+  useEffect(() => {
+    if (firebaseUser) {
+      registerForPushNotifications(firebaseUser.uid).catch(console.error);
     }
   }, [firebaseUser?.uid]);
 

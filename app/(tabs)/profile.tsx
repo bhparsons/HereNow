@@ -44,6 +44,9 @@ export default function ProfileScreen() {
   const [displayName, setDisplayName] = useState(userProfile?.displayName || '');
   const [username, setUsername] = useState(userProfile?.username || '');
   const [isPublic, setIsPublic] = useState(userProfile?.isPublic ?? true);
+  const [availabilityNotifications, setAvailabilityNotifications] = useState(
+    userProfile?.availabilityNotificationsEnabled ?? true
+  );
   const [phone, setPhone] = useState(existingPhone);
   const [facetimeSource, setFacetimeSource] = useState<FaceTimeSource>(inferred.source);
   const [facetimeCustom, setFacetimeCustom] = useState(inferred.custom);
@@ -117,6 +120,7 @@ export default function ProfileScreen() {
         displayName: displayName.trim() || 'User',
         username: trimmedUsername,
         isPublic,
+        availabilityNotificationsEnabled: availabilityNotifications,
         phone: trimmedPhone || undefined,
         contactMethods: Object.keys(contactMethods).length > 0 ? contactMethods : undefined,
       });
@@ -232,6 +236,21 @@ export default function ProfileScreen() {
             <Switch
               value={isPublic}
               onValueChange={setIsPublic}
+              trackColor={{ false: colors.ink[100], true: colors.primary.DEFAULT }}
+              thumbColor={colors.surface}
+            />
+          </View>
+
+          <View className="flex-row justify-between items-center py-2">
+            <View>
+              <Text variant="caption-medium">Availability Notifications</Text>
+              <Text variant="caption" className="text-ink-400 mt-0.5">
+                Get notified when friends go online
+              </Text>
+            </View>
+            <Switch
+              value={availabilityNotifications}
+              onValueChange={setAvailabilityNotifications}
               trackColor={{ false: colors.ink[100], true: colors.primary.DEFAULT }}
               thumbColor={colors.surface}
             />

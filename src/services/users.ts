@@ -55,7 +55,7 @@ export async function getUserProfile(uid: string): Promise<User | null> {
 
 export async function updateUserProfile(
   uid: string,
-  data: Partial<Pick<User, 'displayName' | 'username' | 'photoUrl' | 'pushToken' | 'isPublic' | 'contactMethods' | 'email' | 'phone'>>
+  data: Partial<Pick<User, 'displayName' | 'username' | 'photoUrl' | 'pushToken' | 'isPublic' | 'availabilityNotificationsEnabled' | 'contactMethods' | 'email' | 'phone'>>
 ): Promise<void> {
   await setDoc(doc(db, 'users', uid), data, { merge: true });
 }

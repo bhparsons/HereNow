@@ -8,20 +8,14 @@ admin.initializeApp();
 const db = admin.firestore();
 const expo = new Expo();
 
-// Tier -> delay in milliseconds for staggered notifications
-const TIER_DELAYS: Record<number, number> = {
-  1: 0,        // Immediate
-  2: 30000,    // 30 seconds
-  3: 60000,    // 1 minute
-  4: 120000,   // 2 minutes
-};
+const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * When a user sets themselves as available:
  * 1. Detect overlapping availability (auto-log connections)
  * 2. Compute friend tiers based on priority
  * 3. Write tier data to the availability doc
- * 4. Send staggered push notifications
+ * 4. Send push notifications (with cooldown rate limiting)
  */
 export const onAvailabilityCreated = onDocumentCreated(
   'availability/{userId}',
@@ -123,13 +117,11 @@ export const onAvailabilityCreated = onDocumentCreated(
     // Phase 2/3: Compute tiers
     const tierMap = assignTiers(friendDataList, now);
 
-    // Build tier reveal times
+    // Build tier reveal times (all immediate now — client handles staggered display)
     const tierRevealTimes: Record<number, admin.firestore.Timestamp> = {};
+    const nowTimestamp = admin.firestore.Timestamp.fromDate(now);
     for (let tier = 1; tier <= 4; tier++) {
-      const delay = TIER_DELAYS[tier] || 0;
-      tierRevealTimes[tier] = admin.firestore.Timestamp.fromMillis(
-        now.getTime() + delay
-      );
+      tierRevealTimes[tier] = nowTimestamp;
     }
 
     // Build friendTiers object
@@ -144,79 +136,156 @@ export const onAvailabilityCreated = onDocumentCreated(
       friendTiers,
     });
 
-    // Phase 3: Send staggered push notifications by tier
-    // Group friends by tier
-    const tierGroups = new Map<number, string[]>();
-    for (const [friendId, tier] of tierMap) {
-      if (!tierGroups.has(tier)) {
-        tierGroups.set(tier, []);
+    // Send push notifications with cooldown rate limiting
+    // Sort friends by tier (highest priority first) for digest ordering
+    const sortedFriends = Array.from(tierMap.entries()).sort(
+      ([, tierA], [, tierB]) => tierA - tierB
+    );
+
+    const messages: ExpoPushMessage[] = [];
+
+    for (const [friendId] of sortedFriends) {
+      // Check per-friend notification preference
+      const friendFriendDoc = await db
+        .doc(`users/${friendId}/friends/${userId}`)
+        .get();
+      const friendFriendData = friendFriendDoc.data();
+      if (friendFriendData?.notificationsEnabled === false) continue;
+
+      // Get recipient's user doc (needed for push token + global toggle)
+      const friendUserDoc = await db.doc(`users/${friendId}`).get();
+      const friendData = friendUserDoc.data();
+      if (!friendData?.pushToken) continue;
+      if (!Expo.isExpoPushToken(friendData.pushToken)) continue;
+
+      // Check global availability notifications toggle
+      if (friendData.availabilityNotificationsEnabled === false) continue;
+
+      // Check cooldown
+      const cooldownRef = db.doc(`notificationCooldowns/${friendId}`);
+      const cooldownDoc = await cooldownRef.get();
+      const cooldownData = cooldownDoc.data();
+
+      const lastNotifiedAt = cooldownData?.lastNotifiedAt?.toDate();
+      const isInCooldown =
+        lastNotifiedAt && now.getTime() - lastNotifiedAt.getTime() < COOLDOWN_MS;
+
+      if (isInCooldown) {
+        // Append to pending names for digest
+        await cooldownRef.update({
+          pendingNames: admin.firestore.FieldValue.arrayUnion(displayName),
+        });
+      } else {
+        // Send immediately
+        messages.push({
+          to: friendData.pushToken,
+          sound: 'default',
+          title: 'HereNow',
+          body: `${displayName} is available for the next ${durationLabel}`,
+          data: { userId, type: 'availability' },
+        });
+
+        // Update cooldown record
+        await cooldownRef.set({
+          lastNotifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+          pendingNames: [],
+        });
       }
-      tierGroups.get(tier)!.push(friendId);
     }
 
-    // Send notifications for each tier with appropriate delays
-    for (const [tier, tierFriendIds] of tierGroups) {
-      const delay = TIER_DELAYS[tier] || 0;
-
-      const sendNotifications = async () => {
-        const messages: ExpoPushMessage[] = [];
-
-        for (const friendId of tierFriendIds) {
-          // Check per-friend notification preference
-          const friendRecord = friendDataList.find((f) => f.friendId === friendId);
-          const friendFriendDoc = await db
-            .doc(`users/${friendId}/friends/${userId}`)
-            .get();
-          const friendFriendData = friendFriendDoc.data();
-          if (friendFriendData?.notificationsEnabled === false) continue;
-
-          const friendUserDoc = await db.doc(`users/${friendId}`).get();
-          const friendData = friendUserDoc.data();
-          if (!friendData?.pushToken) continue;
-          if (!Expo.isExpoPushToken(friendData.pushToken)) continue;
-
-          messages.push({
-            to: friendData.pushToken,
-            sound: 'default',
-            title: 'HereNow',
-            body: `${displayName} is available for the next ${durationLabel}`,
-            data: { userId, type: 'availability' },
-          });
+    if (messages.length > 0) {
+      const chunks = expo.chunkPushNotifications(messages);
+      for (const chunk of chunks) {
+        try {
+          await expo.sendPushNotificationsAsync(chunk);
+        } catch (error) {
+          console.error('Error sending push notifications:', error);
         }
-
-        if (messages.length === 0) return;
-
-        const chunks = expo.chunkPushNotifications(messages);
-        for (const chunk of chunks) {
-          try {
-            await expo.sendPushNotificationsAsync(chunk);
-          } catch (error) {
-            console.error(
-              `Error sending tier ${tier} push notifications:`,
-              error
-            );
-          }
-        }
-      };
-
-      if (delay === 0) {
-        await sendNotifications();
-      } else {
-        // Use setTimeout for staggered delivery (within Cloud Function v2 limits)
-        setTimeout(sendNotifications, delay);
       }
     }
   }
 );
 
 /**
- * Scheduled cleanup: remove expired availability documents.
+ * Scheduled digest: send batched notifications for users in cooldown.
+ * Runs every 5 minutes.
+ */
+export const sendDigestNotifications = onSchedule(
+  'every 5 minutes',
+  async () => {
+    const now = admin.firestore.Timestamp.now();
+    const cutoff = admin.firestore.Timestamp.fromMillis(
+      now.toMillis() - COOLDOWN_MS
+    );
+
+    // Find cooldown docs with pending names whose cooldown has expired
+    const cooldownSnap = await db
+      .collection('notificationCooldowns')
+      .where('lastNotifiedAt', '<=', cutoff)
+      .get();
+
+    const messages: ExpoPushMessage[] = [];
+
+    for (const doc of cooldownSnap.docs) {
+      const data = doc.data();
+      const pendingNames: string[] = data.pendingNames || [];
+      if (pendingNames.length === 0) continue;
+
+      const recipientId = doc.id;
+      const recipientDoc = await db.doc(`users/${recipientId}`).get();
+      const recipientData = recipientDoc.data();
+      if (!recipientData?.pushToken) continue;
+      if (!Expo.isExpoPushToken(recipientData.pushToken)) continue;
+      if (recipientData.availabilityNotificationsEnabled === false) continue;
+
+      // Build digest body
+      let body: string;
+      if (pendingNames.length === 1) {
+        body = `${pendingNames[0]} is now online`;
+      } else {
+        const othersCount = pendingNames.length - 1;
+        body = `${pendingNames[0]} and ${othersCount} ${othersCount === 1 ? 'other' : 'others'} are now online`;
+      }
+
+      messages.push({
+        to: recipientData.pushToken,
+        sound: 'default',
+        title: 'HereNow',
+        body,
+        data: { type: 'availability_digest' },
+      });
+
+      // Clear pending and update timestamp
+      await doc.ref.update({
+        pendingNames: [],
+        lastNotifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    if (messages.length > 0) {
+      const chunks = expo.chunkPushNotifications(messages);
+      for (const chunk of chunks) {
+        try {
+          await expo.sendPushNotificationsAsync(chunk);
+        } catch (error) {
+          console.error('Error sending digest notifications:', error);
+        }
+      }
+      console.log(`Sent ${messages.length} digest notifications`);
+    }
+  }
+);
+
+/**
+ * Scheduled cleanup: remove expired availability documents and old cooldown records.
  * Runs every 5 minutes.
  */
 export const cleanupExpiredAvailability = onSchedule(
   'every 5 minutes',
   async () => {
     const now = admin.firestore.Timestamp.now();
+
+    // Clean up expired availability
     const expiredSnap = await db
       .collection('availability')
       .where('availableUntil', '<=', now)
@@ -227,9 +296,25 @@ export const cleanupExpiredAvailability = onSchedule(
       batch.delete(doc.ref);
     }
 
-    if (!expiredSnap.empty) {
+    // Clean up old cooldown records (older than 1 hour)
+    const cooldownCutoff = admin.firestore.Timestamp.fromMillis(
+      now.toMillis() - 60 * 60 * 1000
+    );
+    const oldCooldowns = await db
+      .collection('notificationCooldowns')
+      .where('lastNotifiedAt', '<=', cooldownCutoff)
+      .get();
+
+    for (const doc of oldCooldowns.docs) {
+      batch.delete(doc.ref);
+    }
+
+    const totalCleaned = expiredSnap.size + oldCooldowns.size;
+    if (totalCleaned > 0) {
       await batch.commit();
-      console.log(`Cleaned up ${expiredSnap.size} expired availability records`);
+      console.log(
+        `Cleaned up ${expiredSnap.size} expired availability records and ${oldCooldowns.size} old cooldown records`
+      );
     }
   }
 );
