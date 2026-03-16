@@ -183,6 +183,26 @@
       color: #94A3B8;
       font-style: italic;
     }
+    .badge-conversation {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #DBEAFE;
+      color: #1E40AF;
+    }
+    .badge-readonly {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 500;
+      background: #F1F5F9;
+      color: #64748B;
+    }
+    .status-msg { font-style: italic; color: #6366F1; font-size: 12px; }
+    .relative-time { font-size: 11px; color: #94A3B8; }
   </style>
 </head>
 <body>
@@ -257,11 +277,25 @@
           </select>
         </div>
       </div>
+      <div style="margin-bottom: 10px;">
+        <label>Status Message</label>
+        <input id="a-status" placeholder="What's on your mind?">
+      </div>
       <div style="display: flex; gap: 8px;">
         <button class="btn-success" onclick="setAvailable()">Set Available</button>
         <button class="btn-danger" onclick="setUnavailable()">Set Unavailable</button>
       </div>
       <div id="availability-table" style="margin-top: 12px;"></div>
+      <div class="divider"></div>
+      <h2 style="font-size: 15px;">In-Conversation</h2>
+      <div class="form-row" style="margin-top: 8px;">
+        <div><label>User A</label><select id="ic-user-a"></select></div>
+        <div><label>User B</label><select id="ic-user-b"></select></div>
+      </div>
+      <div style="display: flex; gap: 8px; margin-top: 4px;">
+        <button class="btn-primary btn-sm" onclick="startConversation()">Start Conversation</button>
+        <button class="btn-warning btn-sm" onclick="endConversation()">End Conversation</button>
+      </div>
     </div>
 
     <!-- Friend Settings -->
@@ -275,13 +309,14 @@
       <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start;">
         <!-- Connection Goal -->
         <div style="flex: 1; min-width: 200px;">
-          <label>Connection Goal</label>
+          <label id="fs-goal-label">Connection Goal</label>
           <div style="display: flex; gap: 6px; flex-wrap: wrap;">
             <span class="chip" data-goal="weekly" onclick="setGoal('weekly')">Weekly</span>
             <span class="chip" data-goal="monthly" onclick="setGoal('monthly')">Monthly</span>
             <span class="chip" data-goal="quarterly" onclick="setGoal('quarterly')">Quarterly</span>
             <span class="chip" data-goal="null" onclick="setGoal(null)">No goal</span>
           </div>
+          <div id="fs-reverse-goal" style="margin-top: 6px;"></div>
         </div>
 
         <!-- Snooze -->
@@ -339,7 +374,7 @@
     }
 
     function populateSelects() {
-      const selects = ['f-from', 'f-to', 'a-user', 'fs-user', 'fs-friend'];
+      const selects = ['f-from', 'f-to', 'a-user', 'fs-user', 'fs-friend', 'ic-user-a', 'ic-user-b'];
       for (const id of selects) {
         const sel = document.getElementById(id);
         const val = sel.value;
@@ -429,20 +464,72 @@
       if (avail.length === 0) {
         html = '<p class="empty">No one is currently available.</p>';
       } else {
-        html = '<table><tr><th>User</th><th>Until</th><th></th></tr>';
+        html = '<table><tr><th>User</th><th>Until</th><th>Status</th><th></th></tr>';
         for (const a of avail) {
           const user = users.find(u => u.uid === a.userId);
           const name = user ? `${user.displayName}` : a.userId.slice(0, 12);
           const until = a.availableUntil ? new Date(a.availableUntil).toLocaleTimeString() : '?';
+          let statusCol = a.statusMessage ? `<span class="status-msg">${a.statusMessage}</span>` : '<span style="color:#94A3B8">—</span>';
+          if (a.inConversation) {
+            const withUser = users.find(u => u.uid === a.inConversationWith);
+            const withName = withUser ? withUser.displayName : (a.inConversationWith || '?');
+            statusCol += ` <span class="badge-conversation">chatting w/ ${withName}</span>`;
+          }
+          const updateId = `status-${a.userId.replace(/[^a-zA-Z0-9]/g, '')}`;
           html += `<tr>
             <td>${name} <span class="status-badge status-available">available</span></td>
             <td>${until}</td>
+            <td>${statusCol}<br><input id="${updateId}" placeholder="Update status..." style="width:140px;padding:3px 6px;font-size:11px;margin-top:4px;border-radius:6px;border:1px solid #E2E8F0;">
+              <button class="btn-outline btn-sm" style="padding:2px 6px;font-size:10px;" onclick="updateStatus('${a.userId}','${updateId}')">Update</button></td>
             <td><button class="btn-danger btn-sm" onclick="setUnavailableFor('${a.userId}')">Remove</button></td>
           </tr>`;
         }
         html += '</table>';
       }
       document.getElementById('availability-table').innerHTML = html;
+    }
+
+    async function updateStatus(uid, inputId) {
+      try {
+        const statusMessage = document.getElementById(inputId).value.trim();
+        await api('PATCH', `/api/availability/${uid}/status`, { statusMessage: statusMessage || null });
+        toast('Status updated');
+        refreshAll();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function startConversation() {
+      try {
+        const uid = document.getElementById('ic-user-a').value;
+        const friendId = document.getElementById('ic-user-b').value;
+        if (uid === friendId) return toast('Pick two different users', 'error');
+        await api('POST', '/api/availability/in-conversation', { uid, friendId, inConversation: true });
+        toast('Conversation started');
+        refreshAll();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function endConversation() {
+      try {
+        const uid = document.getElementById('ic-user-a').value;
+        const friendId = document.getElementById('ic-user-b').value;
+        if (uid === friendId) return toast('Pick two different users', 'error');
+        await api('POST', '/api/availability/in-conversation', { uid, friendId, inConversation: false });
+        toast('Conversation ended');
+        refreshAll();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    function relativeTime(dateStr) {
+      if (!dateStr) return '';
+      const diff = Date.now() - new Date(dateStr).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      const days = Math.floor(hrs / 24);
+      return `${days}d ago`;
     }
 
     async function loadState() {
@@ -470,6 +557,9 @@
             if (f.connectionCount > 0) {
               details.push(`<span class="detail-tag" style="background:#F0FDFA;color:#0D9488">${f.connectionCount} chats</span>`);
             }
+            if (f.lastConnectionAt) {
+              details.push(`<span class="relative-time">last: ${relativeTime(f.lastConnectionAt)}</span>`);
+            }
             if (details.length > 0) {
               str += `<div class="detail-row">${details.join('')}</div>`;
             }
@@ -477,9 +567,18 @@
           }).join('<br>');
 
         const avail = state.availability.find(a => a.userId === u.uid);
-        const availStr = avail
-          ? `<span class="status-badge status-available">until ${new Date(avail.availableUntil).toLocaleTimeString()}</span>`
-          : '<span style="color:#94A3B8">no</span>';
+        let availStr = '<span style="color:#94A3B8">no</span>';
+        if (avail) {
+          availStr = `<span class="status-badge status-available">until ${new Date(avail.availableUntil).toLocaleTimeString()}</span>`;
+          if (avail.statusMessage) {
+            availStr += ` <span class="status-msg">${avail.statusMessage}</span>`;
+          }
+          if (avail.inConversation) {
+            const withUser = state.users.find(x => x.uid === avail.inConversationWith);
+            const withName = withUser ? withUser.displayName : (avail.inConversationWith || '?');
+            availStr += ` <span class="badge-conversation">chatting w/ ${withName}</span>`;
+          }
+        }
         html += `<tr><td>${u.displayName} <span class="mono">@${u.username}</span></td><td>${friendsStr}</td><td>${availStr}</td></tr>`;
       }
       html += '</table>';
@@ -584,7 +683,8 @@
       try {
         const uid = document.getElementById('a-user').value;
         const durationMinutes = parseInt(document.getElementById('a-duration').value);
-        await api('POST', '/api/availability', { uid, durationMinutes });
+        const statusMessage = document.getElementById('a-status').value.trim() || undefined;
+        await api('POST', '/api/availability', { uid, durationMinutes, statusMessage });
         toast('Set available');
         refreshAll();
       } catch (e) { toast(e.message, 'error'); }
@@ -626,13 +726,25 @@
       snoozeStatus.className = 'snooze-status not-snoozed';
       snoozeStatus.innerHTML = 'Not snoozed';
       document.getElementById('fs-notif-toggle').checked = true;
+      document.getElementById('fs-reverse-goal').innerHTML = '';
+      document.getElementById('fs-goal-label').textContent = 'Connection Goal';
 
       const { uid, friendId } = getFsIds();
       if (!uid || !friendId || uid === friendId) return;
 
+      const userName = users.find(u => u.uid === uid)?.displayName || uid.slice(0, 8);
+      const friendName = users.find(u => u.uid === friendId)?.displayName || friendId.slice(0, 8);
+
+      document.getElementById('fs-goal-label').textContent = `${userName}'s goal for ${friendName}`;
+
       try {
-        const friends = await api('GET', `/api/users/${uid}/friends`);
+        const [friends, reverseFriends] = await Promise.all([
+          api('GET', `/api/users/${uid}/friends`),
+          api('GET', `/api/users/${friendId}/friends`),
+        ]);
         const record = friends.find(f => f.friendId === friendId);
+        const reverseRecord = reverseFriends.find(f => f.friendId === uid);
+
         if (!record) return;
         currentFriendRecord = record;
 
@@ -643,6 +755,13 @@
         } else {
           const chip = document.querySelector('.chip[data-goal="null"]');
           if (chip) chip.classList.add('active');
+        }
+
+        // Show reverse goal as read-only badge
+        if (reverseRecord) {
+          const reverseGoal = reverseRecord.frequencyGoal || 'none';
+          document.getElementById('fs-reverse-goal').innerHTML =
+            `<span class="badge-readonly">${friendName}'s goal for ${userName}: ${reverseGoal}</span>`;
         }
 
         // Snooze status

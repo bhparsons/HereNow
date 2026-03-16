@@ -54,10 +54,10 @@ export async function getMyAvailability(
   const snap = await getDoc(doc(db, 'availability', userId));
   if (!snap.exists()) return null;
   const data = snap.data();
-  const availableUntil = data.availableUntil.toDate();
+  const availableUntil = data.availableUntil?.toDate();
 
-  // If expired, clean up
-  if (availableUntil <= new Date()) {
+  // If missing or expired, clean up
+  if (!availableUntil || availableUntil <= new Date()) {
     await deleteDoc(doc(db, 'availability', userId));
     return null;
   }
@@ -77,9 +77,9 @@ export function subscribeToMyAvailability(
         return;
       }
       const data = snap.data();
-      const availableUntil = data.availableUntil.toDate();
+      const availableUntil = data.availableUntil?.toDate();
 
-      if (availableUntil <= new Date()) {
+      if (!availableUntil || availableUntil <= new Date()) {
         callback(null);
         return;
       }
@@ -115,7 +115,8 @@ export async function getAvailableFriends(
     const snap = await getDocs(q);
     for (const d of snap.docs) {
       const data = d.data();
-      const availableUntil = data.availableUntil.toDate();
+      const availableUntil = data.availableUntil?.toDate();
+      if (!availableUntil) continue;
       if (availableUntil > now) {
         results.push({
           userId: d.id,
@@ -123,7 +124,7 @@ export async function getAvailableFriends(
           username: '',
           photoUrl: null,
           availableUntil,
-          startedAt: data.startedAt.toDate(),
+          startedAt: data.startedAt?.toDate() || new Date(),
           inConversation: data.inConversation || false,
         });
       }
@@ -166,7 +167,8 @@ export function subscribeToAvailableFriends(
         }
         for (const d of snap.docs) {
           const data = d.data();
-          const availableUntil = data.availableUntil.toDate();
+          const availableUntil = data.availableUntil?.toDate();
+          if (!availableUntil) continue;
           if (availableUntil > now) {
             availabilityMap.set(d.id, parseAvailabilityDoc(d.id, data));
           }
@@ -219,8 +221,8 @@ function parseAvailabilityDoc(userId: string, data: DocumentData): Availability 
   const availability: Availability = {
     userId,
     isAvailable: true,
-    availableUntil: data.availableUntil.toDate(),
-    startedAt: data.startedAt.toDate(),
+    availableUntil: data.availableUntil?.toDate() || new Date(),
+    startedAt: data.startedAt?.toDate() || new Date(),
     inConversation: data.inConversation || false,
     inConversationWith: data.inConversationWith || null,
     statusMessage: data.statusMessage || undefined,
@@ -230,7 +232,7 @@ function parseAvailabilityDoc(userId: string, data: DocumentData): Availability 
   if (data.tierRevealTimes) {
     availability.tierRevealTimes = {};
     for (const [tier, ts] of Object.entries(data.tierRevealTimes)) {
-      availability.tierRevealTimes[Number(tier)] = (ts as any).toDate();
+      availability.tierRevealTimes[Number(tier)] = (ts as any)?.toDate?.() || new Date();
     }
   }
 

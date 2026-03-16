@@ -257,8 +257,13 @@ app.post('/api/friends/snooze', async (req, res) => {
     }
     const until = new Date();
     until.setDate(until.getDate() + days);
+    const snoozedUntil = Timestamp.fromDate(until);
     await db.collection('users').doc(uid).collection('friends').doc(friendId).set(
-      { snoozedUntil: Timestamp.fromDate(until) },
+      { snoozedUntil },
+      { merge: true }
+    );
+    await db.collection('users').doc(friendId).collection('friends').doc(uid).set(
+      { snoozedUntil },
       { merge: true }
     );
     res.json({ success: true, snoozedUntil: until.toISOString() });
@@ -274,6 +279,10 @@ app.post('/api/friends/unsnooze', async (req, res) => {
       return res.status(400).json({ error: 'uid and friendId are required' });
     }
     await db.collection('users').doc(uid).collection('friends').doc(friendId).set(
+      { snoozedUntil: null },
+      { merge: true }
+    );
+    await db.collection('users').doc(friendId).collection('friends').doc(uid).set(
       { snoozedUntil: null },
       { merge: true }
     );
@@ -358,6 +367,9 @@ app.get('/api/availability', async (_req, res) => {
         isAvailable: data.isAvailable,
         availableUntil: data.availableUntil?.toDate?.() ?? null,
         startedAt: data.startedAt?.toDate?.() ?? null,
+        statusMessage: data.statusMessage ?? null,
+        inConversation: data.inConversation ?? false,
+        inConversationWith: data.inConversationWith ?? null,
       };
     });
     res.json(availability);
@@ -368,7 +380,7 @@ app.get('/api/availability', async (_req, res) => {
 
 app.post('/api/availability', async (req, res) => {
   try {
-    const { uid, durationMinutes } = req.body;
+    const { uid, durationMinutes, statusMessage } = req.body;
     if (!uid || !durationMinutes) {
       return res.status(400).json({ error: 'uid and durationMinutes are required' });
     }
@@ -380,9 +392,74 @@ app.post('/api/availability', async (req, res) => {
       isAvailable: true,
       availableUntil: Timestamp.fromDate(availableUntil),
       startedAt: Timestamp.fromDate(now),
+      inConversation: false,
+      inConversationWith: null,
+      statusMessage: statusMessage || null,
     });
 
     res.json({ success: true, availableUntil: availableUntil.toISOString() });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/availability/:uid/status', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const existing = await db.collection('availability').doc(uid).get();
+    if (!existing.exists) {
+      return res.status(400).json({ error: 'User is not currently available' });
+    }
+    const { statusMessage } = req.body;
+    await db.collection('availability').doc(uid).set(
+      { statusMessage: statusMessage || null },
+      { merge: true }
+    );
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/availability/in-conversation', async (req, res) => {
+  try {
+    const { uid, friendId, inConversation } = req.body;
+    if (!uid || !friendId) {
+      return res.status(400).json({ error: 'uid and friendId are required' });
+    }
+
+    // Only update docs that already exist — merging into a non-existent doc
+    // creates a partial record missing startedAt/availableUntil, which crashes
+    // the app's onSnapshot listener when it calls .toDate() on undefined.
+    const [uidDoc, friendDoc] = await Promise.all([
+      db.collection('availability').doc(uid).get(),
+      db.collection('availability').doc(friendId).get(),
+    ]);
+
+    if (inConversation && (!uidDoc.exists || !friendDoc.exists)) {
+      return res.status(400).json({ error: 'Both users must be available to start a conversation' });
+    }
+
+    const updates: { ref: FirebaseFirestore.DocumentReference; data: Record<string, any> }[] = [];
+    if (uidDoc.exists) {
+      updates.push({
+        ref: db.collection('availability').doc(uid),
+        data: inConversation
+          ? { inConversation: true, inConversationWith: friendId }
+          : { inConversation: false, inConversationWith: null },
+      });
+    }
+    if (friendDoc.exists) {
+      updates.push({
+        ref: db.collection('availability').doc(friendId),
+        data: inConversation
+          ? { inConversation: true, inConversationWith: uid }
+          : { inConversation: false, inConversationWith: null },
+      });
+    }
+
+    await Promise.all(updates.map(u => u.ref.set(u.data, { merge: true })));
+    res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -436,8 +513,12 @@ app.get('/api/state', async (_req, res) => {
       const data = d.data();
       return {
         userId: d.id,
+        isAvailable: data.isAvailable ?? true,
         availableUntil: data.availableUntil?.toDate?.() ?? null,
         startedAt: data.startedAt?.toDate?.() ?? null,
+        statusMessage: data.statusMessage ?? null,
+        inConversation: data.inConversation ?? false,
+        inConversationWith: data.inConversationWith ?? null,
       };
     });
 
