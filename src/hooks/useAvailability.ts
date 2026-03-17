@@ -7,16 +7,18 @@ import {
   setInConversation,
   updateStatusMessage,
 } from '../services/availability';
-import { getUserProfile } from '../services/users';
+import { getUserProfiles } from '../services/users';
 import { Availability, AvailableFriend, FriendRecord } from '../types';
-import { computePriority, assignTiers } from '../utils/priority';
+import { computePriority } from '../utils/priority';
 
 export function useMyAvailability(userId: string | undefined) {
   const [availability, setAvailabilityState] = useState<Availability | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) return;
+    setError(null);
     const unsubscribe = subscribeToMyAvailability(userId, setAvailabilityState);
     return unsubscribe;
   }, [userId]);
@@ -47,20 +49,34 @@ export function useMyAvailability(userId: string | undefined) {
   const goAvailable = useCallback(
     async (durationMinutes: number, statusMessage?: string) => {
       if (!userId) return;
-      await setAvailable(userId, durationMinutes, statusMessage);
+      try {
+        setError(null);
+        await setAvailable(userId, durationMinutes, statusMessage);
+      } catch (e: any) {
+        setError(e.message || 'Failed to go available');
+      }
     },
     [userId]
   );
 
   const goUnavailable = useCallback(async () => {
     if (!userId) return;
-    await setUnavailable(userId);
+    try {
+      setError(null);
+      await setUnavailable(userId);
+    } catch (e: any) {
+      setError(e.message || 'Failed to go unavailable');
+    }
   }, [userId]);
 
   const toggleInConversation = useCallback(
     async (inConversation: boolean) => {
       if (!userId) return;
-      await setInConversation(userId, inConversation);
+      try {
+        await setInConversation(userId, inConversation);
+      } catch (e: any) {
+        setError(e.message || 'Failed to update conversation status');
+      }
     },
     [userId]
   );
@@ -77,6 +93,7 @@ export function useMyAvailability(userId: string | undefined) {
     isAvailable: !!availability,
     availability,
     timeRemaining,
+    error,
     goAvailable,
     goUnavailable,
     toggleInConversation,
@@ -90,6 +107,7 @@ export function useAvailableFriends(
 ) {
   const [availableFriends, setAvailableFriends] = useState<AvailableFriend[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const friendRecordsRef = useRef(friendRecords);
   friendRecordsRef.current = friendRecords;
 
@@ -100,74 +118,69 @@ export function useAvailableFriends(
       return;
     }
 
+    setError(null);
     const unsubscribe = subscribeToAvailableFriends(
       friendIds,
       async (availabilityMap) => {
-        const friends: AvailableFriend[] = [];
-        const now = new Date();
+        try {
+          const friends: AvailableFriend[] = [];
+          const uids = Array.from(availabilityMap.keys());
+          const profiles = await getUserProfiles(uids);
 
-        for (const [uid, avail] of availabilityMap) {
-          // Phase 3: Tier-based filtering
-          // If this availability has tier info for us, check reveal time
-          if (avail.tierRevealTimes && avail.friendTiers) {
-            const myTier = avail.friendTiers[uid]; // Our tier in their list
-            if (myTier && avail.tierRevealTimes[myTier]) {
-              const revealTime = avail.tierRevealTimes[myTier];
-              if (revealTime > now) {
-                // Not yet revealed for our tier, skip for now
-                continue;
+          for (const [uid, avail] of availabilityMap) {
+            // Tier-based filtering (delays set to 0 — effectively a passthrough)
+            if (avail.tierRevealTimes && avail.friendTiers) {
+              const myTier = avail.friendTiers[uid];
+              if (myTier && avail.tierRevealTimes[myTier]) {
+                const revealTime = avail.tierRevealTimes[myTier];
+                if (revealTime > new Date()) {
+                  continue;
+                }
               }
+            }
+
+            const profile = profiles.get(uid);
+            if (profile) {
+              friends.push({
+                userId: uid,
+                displayName: profile.displayName,
+                username: profile.username,
+                photoUrl: profile.photoUrl,
+                contactMethods: profile.contactMethods,
+                availableUntil: avail.availableUntil,
+                startedAt: avail.startedAt,
+                inConversation: avail.inConversation || false,
+                statusMessage: avail.statusMessage,
+              });
             }
           }
 
-          const profile = await getUserProfile(uid);
-          if (profile) {
-            friends.push({
-              userId: uid,
-              displayName: profile.displayName,
-              username: profile.username,
-              photoUrl: profile.photoUrl,
-              contactMethods: profile.contactMethods,
-              availableUntil: avail.availableUntil,
-              startedAt: avail.startedAt,
-              inConversation: avail.inConversation || false,
-              statusMessage: avail.statusMessage,
+          // Sort by priority if we have friend records, otherwise by time remaining
+          const records = friendRecordsRef.current;
+          if (records && records.length > 0) {
+            friends.sort((a, b) => {
+              const recordA = records.find((r) => r.friendId === a.userId);
+              const recordB = records.find((r) => r.friendId === b.userId);
+              if (!recordA || !recordB) return 0;
+              return computePriority(recordB) - computePriority(recordA);
             });
+          } else {
+            friends.sort(
+              (a, b) => b.availableUntil.getTime() - a.availableUntil.getTime()
+            );
           }
-        }
 
-        // Sort by priority if we have friend records, otherwise by time remaining
-        const records = friendRecordsRef.current;
-        if (records && records.length > 0) {
-          friends.sort((a, b) => {
-            const recordA = records.find((r) => r.friendId === a.userId);
-            const recordB = records.find((r) => r.friendId === b.userId);
-            if (!recordA || !recordB) return 0;
-            return computePriority(recordB) - computePriority(recordA);
-          });
-        } else {
-          friends.sort(
-            (a, b) => b.availableUntil.getTime() - a.availableUntil.getTime()
-          );
+          setAvailableFriends(friends);
+          setLoading(false);
+        } catch (e: any) {
+          setError(e.message || 'Failed to load available friends');
+          setLoading(false);
         }
-
-        setAvailableFriends(friends);
-        setLoading(false);
       }
     );
 
     return unsubscribe;
   }, [friendIds.join(',')]);
 
-  // Set up timers to re-render when tier reveal times pass
-  useEffect(() => {
-    if (availableFriends.length === 0) return;
-    // Force re-render periodically to catch newly revealed tiers
-    const interval = setInterval(() => {
-      setAvailableFriends((prev) => [...prev]);
-    }, 10000); // Check every 10s
-    return () => clearInterval(interval);
-  }, [availableFriends.length]);
-
-  return { availableFriends, loading };
+  return { availableFriends, loading, error };
 }

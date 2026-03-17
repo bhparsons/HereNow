@@ -3,7 +3,7 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   'auth/invalid-email': 'Please enter a valid email address.',
   'auth/user-not-found': 'No account found with this email.',
   'auth/wrong-password': 'Incorrect email or password.',
-  'auth/invalid-credential': 'Incorrect email or password.',
+  'auth/invalid-credential': 'Incorrect email or password. If you previously signed in with Google or Apple, try that method instead.',
   'auth/weak-password': 'Password must be at least 6 characters.',
   'auth/too-many-requests': 'Too many failed attempts. Please wait a few minutes.',
   'auth/user-disabled': 'This account has been disabled.',

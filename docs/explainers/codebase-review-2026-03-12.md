@@ -1,5 +1,7 @@
 # HereNow Codebase Review — 2026-03-12
 
+> **Update 2026-03-14:** The following items from `docs/TODO.md` have been verified as complete: Auth account conflict resolution, FaceTime call initiation, Connection history UI, Profile photo upload to Firebase Storage, QR code friend add, Offline state handling. The duplicate `style` prop (Section 1) has been fixed. Remaining items are tracked in `docs/TODO.md`.
+
 ## Summary
 
 Full review of the HereNow codebase covering build issues, performance concerns, code quality, and architecture. Findings are ordered by severity with recommended fixes and verification steps.

@@ -9,6 +9,7 @@ interface AuthContextType {
   firebaseUser: FirebaseUser | null;
   userProfile: User | null;
   loading: boolean;
+  error: string | null;
   refreshProfile: () => Promise<void>;
 }
 
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthContextType>({
   firebaseUser: null,
   userProfile: null,
   loading: true,
+  error: null,
   refreshProfile: async () => {},
 });
 
@@ -23,21 +25,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refreshProfile = async () => {
     if (firebaseUser) {
-      const profile = await getUserProfile(firebaseUser.uid);
-      setUserProfile(profile);
+      try {
+        const profile = await getUserProfile(firebaseUser.uid);
+        setUserProfile(profile);
+      } catch (e: any) {
+        setError(e.message || 'Failed to load profile');
+      }
     }
   };
 
   useEffect(() => {
     const unsubscribe = subscribeToAuthState(async (user) => {
       setLoading(true);
+      setError(null);
       setFirebaseUser(user);
       if (user) {
-        const profile = await getUserProfile(user.uid);
-        setUserProfile(profile);
+        try {
+          const profile = await getUserProfile(user.uid);
+          setUserProfile(profile);
+        } catch (e: any) {
+          setError(e.message || 'Failed to load profile');
+        }
       } else {
         setUserProfile(null);
       }
@@ -61,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [firebaseUser?.uid]);
 
   return (
-    <AuthContext.Provider value={{ firebaseUser, userProfile, loading, refreshProfile }}>
+    <AuthContext.Provider value={{ firebaseUser, userProfile, loading, error, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

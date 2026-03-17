@@ -7,6 +7,7 @@ import {
   collection,
   where,
   getDocs,
+  documentId,
   serverTimestamp,
   limit as firestoreLimit,
 } from 'firebase/firestore';
@@ -63,6 +64,37 @@ export async function getUserProfile(uid: string): Promise<User | null> {
     invitedBy: data.invitedBy,
     contactMethods: data.contactMethods,
   };
+}
+
+/**
+ * Fetch multiple user profiles in batches of 30 (Firestore `in` query limit).
+ */
+export async function getUserProfiles(uids: string[]): Promise<Map<string, User>> {
+  const profiles = new Map<string, User>();
+  if (uids.length === 0) return profiles;
+
+  // Firestore `in` queries are limited to 30 values
+  const BATCH_SIZE = 30;
+  for (let i = 0; i < uids.length; i += BATCH_SIZE) {
+    const batch = uids.slice(i, i + BATCH_SIZE);
+    const q = query(collection(db, 'users'), where(documentId(), 'in', batch));
+    const snap = await getDocs(q);
+    for (const userDoc of snap.docs) {
+      const data = userDoc.data();
+      profiles.set(userDoc.id, {
+        uid: userDoc.id,
+        displayName: data.displayName,
+        username: data.username,
+        photoUrl: data.photoUrl,
+        isPublic: data.isPublic ?? true,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        pushToken: data.pushToken,
+        contactMethods: data.contactMethods,
+      });
+    }
+  }
+
+  return profiles;
 }
 
 export async function updateUserProfile(

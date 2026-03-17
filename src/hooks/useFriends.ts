@@ -1,31 +1,31 @@
 import { useEffect, useState } from 'react';
 import { subscribeFriends } from '../services/friends';
-import { getUserProfile } from '../services/users';
+import { getUserProfiles } from '../services/users';
 import { FriendRecord, User } from '../types';
 
 export function useFriends(userId: string | undefined) {
   const [friends, setFriends] = useState<FriendRecord[]>([]);
   const [friendProfiles, setFriendProfiles] = useState<Map<string, User>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) return;
 
+    setError(null);
     const unsubscribe = subscribeFriends(userId, async (friendRecords) => {
-      setFriends(friendRecords);
+      try {
+        setFriends(friendRecords);
 
-      // Fetch profiles for all friends
-      const profiles = new Map<string, User>();
-      await Promise.all(
-        friendRecords.map(async (fr) => {
-          const profile = await getUserProfile(fr.friendId);
-          if (profile) {
-            profiles.set(fr.friendId, profile);
-          }
-        })
-      );
-      setFriendProfiles(profiles);
-      setLoading(false);
+        // Batch fetch profiles (groups of 30 via Firestore `in` query)
+        const friendIds = friendRecords.map((fr) => fr.friendId);
+        const profiles = await getUserProfiles(friendIds);
+        setFriendProfiles(profiles);
+        setLoading(false);
+      } catch (e: any) {
+        setError(e.message || 'Failed to load friends');
+        setLoading(false);
+      }
     });
 
     return unsubscribe;
@@ -42,5 +42,6 @@ export function useFriends(userId: string | undefined) {
     pendingSent,
     friendProfiles,
     loading,
+    error,
   };
 }

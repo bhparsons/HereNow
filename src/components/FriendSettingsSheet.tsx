@@ -42,36 +42,51 @@ export function FriendSettingsSheet({
 }: Props) {
   const [showSnoozePicker, setShowSnoozePicker] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const isSnoozed = friend.snoozedUntil && friend.snoozedUntil > new Date();
   const notificationsEnabled = friend.notificationsEnabled ?? true;
 
-  const handleSetGoal = async (goal: FrequencyGoal | null) => {
-    await setFrequencyGoal(currentUserId, friend.friendId, goal);
+  const withGuard = <T extends any[]>(fn: (...args: T) => Promise<void>) => {
+    return async (...args: T) => {
+      if (busy) return;
+      setBusy(true);
+      try {
+        await fn(...args);
+      } catch (e: any) {
+        Alert.alert('Error', e.message || 'Something went wrong');
+      } finally {
+        setBusy(false);
+      }
+    };
   };
 
-  const handleLogCatchUp = async () => {
+  const handleSetGoal = withGuard(async (goal: FrequencyGoal | null) => {
+    await setFrequencyGoal(currentUserId, friend.friendId, goal);
+  });
+
+  const handleLogCatchUp = withGuard(async () => {
     await logManualConnection(currentUserId, friend.friendId);
     Alert.alert('Logged!', 'Catch-up recorded.');
     onClose();
-  };
+  });
 
-  const handleSnooze = async (days: number) => {
+  const handleSnooze = withGuard(async (days: number) => {
     const until = new Date();
     until.setDate(until.getDate() + days);
     await snoozeFriend(currentUserId, friend.friendId, until);
     setShowSnoozePicker(false);
     onClose();
-  };
+  });
 
-  const handleUnsnooze = async () => {
+  const handleUnsnooze = withGuard(async () => {
     await unsnoozeFriend(currentUserId, friend.friendId);
     onClose();
-  };
+  });
 
-  const handleToggleNotifications = async (enabled: boolean) => {
+  const handleToggleNotifications = withGuard(async (enabled: boolean) => {
     await setNotificationPreference(currentUserId, friend.friendId, enabled);
-  };
+  });
 
   const handleRemove = () => {
     Alert.alert(
@@ -82,10 +97,10 @@ export function FriendSettingsSheet({
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: async () => {
+          onPress: withGuard(async () => {
             await removeFriend(currentUserId, friend.friendId);
             onClose();
-          },
+          }),
         },
       ]
     );
@@ -253,13 +268,14 @@ export function FriendSettingsSheet({
           variant="primary"
           label="Log Catch-up"
           onPress={handleLogCatchUp}
+          disabled={busy}
           fullWidth
           className="mb-3"
         />
 
         {/* Remove friend (plain text link) */}
-        <Pressable onPress={handleRemove} className="items-center py-1">
-          <Text variant="body-medium" className="text-error">Remove friend</Text>
+        <Pressable onPress={handleRemove} disabled={busy} className="items-center py-1">
+          <Text variant="body-medium" className={busy ? 'text-error opacity-50' : 'text-error'}>Remove friend</Text>
         </Pressable>
       </Sheet>
 

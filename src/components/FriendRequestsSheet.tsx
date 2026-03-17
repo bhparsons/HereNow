@@ -24,12 +24,31 @@ export function FriendRequestsSheet({
   friendProfiles,
   currentUserId,
 }: Props) {
+  const [loadingId, setLoadingId] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+
   const handleAccept = async (friendId: string) => {
-    await acceptFriendRequest(currentUserId, friendId);
+    setLoadingId(friendId);
+    setError(null);
+    try {
+      await acceptFriendRequest(currentUserId, friendId);
+    } catch (e: any) {
+      setError(e.message || 'Failed to accept request');
+    } finally {
+      setLoadingId(null);
+    }
   };
 
   const handleDecline = async (friendId: string) => {
-    await declineFriendRequest(currentUserId, friendId);
+    setLoadingId(friendId);
+    setError(null);
+    try {
+      await declineFriendRequest(currentUserId, friendId);
+    } catch (e: any) {
+      setError(e.message || 'Failed to decline request');
+    } finally {
+      setLoadingId(null);
+    }
   };
 
   const getProfile = (friendId: string) => friendProfiles.get(friendId);
@@ -41,6 +60,12 @@ export function FriendRequestsSheet({
       <Text variant="h2" className="mb-4">
         Friend Requests
       </Text>
+
+      {error && (
+        <Text variant="caption" className="text-error text-center mb-2">
+          {error}
+        </Text>
+      )}
 
       {isEmpty && (
         <Text variant="body" className="text-ink-300 text-center py-6">
@@ -78,6 +103,7 @@ export function FriendRequestsSheet({
                   size="sm"
                   label="Accept"
                   onPress={() => handleAccept(item.friendId)}
+                  disabled={loadingId !== null}
                   className="mr-2"
                 />
                 <Button
@@ -85,6 +111,7 @@ export function FriendRequestsSheet({
                   size="sm"
                   label="Decline"
                   onPress={() => handleDecline(item.friendId)}
+                  disabled={loadingId !== null}
                 />
               </View>
             );
