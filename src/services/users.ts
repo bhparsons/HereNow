@@ -16,6 +16,7 @@ import {
   uploadBytes,
   getDownloadURL,
 } from 'firebase/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../config/firebase';
 import { User } from '../types';
 
@@ -32,6 +33,16 @@ export async function createUserProfile(
   };
   if (data.email) profile.email = data.email;
   if (data.phone) profile.phone = data.phone;
+
+  // Check for referral tracking
+  try {
+    const invitedBy = await AsyncStorage.getItem('invitedByUsername');
+    if (invitedBy) {
+      profile.invitedBy = invitedBy;
+      await AsyncStorage.removeItem('invitedByUsername');
+    }
+  } catch {}
+
   await setDoc(doc(db, 'users', uid), profile);
 }
 
@@ -49,6 +60,7 @@ export async function getUserProfile(uid: string): Promise<User | null> {
     pushToken: data.pushToken,
     email: data.email,
     phone: data.phone,
+    invitedBy: data.invitedBy,
     contactMethods: data.contactMethods,
   };
 }

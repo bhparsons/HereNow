@@ -21,6 +21,8 @@ export const FREQUENCY_GOALS = [
   { label: 'Quarterly', value: 'quarterly' as const },
 ];
 
+export const TESTFLIGHT_URL = 'https://testflight.apple.com/join/PLACEHOLDER';
+
 export const QUICK_DURATIONS: DurationOption[] = [
   { label: '15 min', minutes: 15 },
   { label: '30 min', minutes: 30 },

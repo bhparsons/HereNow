@@ -18,6 +18,13 @@
     }
   },
   "submit": {
+    "preview": {
+      "ios": {
+        "appleId": "blakehparsons@gmail.com",
+        "ascAppId": "6760428526",
+        "appleTeamId": "CJV4T7G5Z9"
+      }
+    },
     "production": {
       "ios": {
         "appleId": "blakehparsons@gmail.com",

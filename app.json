@@ -21,7 +21,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bhparsons.herenow",
-      "appleTeamId": "BB3QH9JKJ2",
+      "appleTeamId": "CJV4T7G5Z9",
       "usesAppleSignIn": true,
       "googleServicesFile": "./GoogleService-Info.plist",
       "entitlements": {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Alert, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../src/hooks/useAuth';
 import { findUserByUsername } from '../../src/services/users';
 import { sendFriendRequest } from '../../src/services/friends';
@@ -20,11 +21,17 @@ export default function FriendDeepLink() {
 
   useEffect(() => {
     if (!username) return;
+
+    // Stash inviter username for referral tracking if user is not authenticated
+    if (!firebaseUser) {
+      AsyncStorage.setItem('invitedByUsername', username).catch(() => {});
+    }
+
     findUserByUsername(username, false)
       .then(setUser)
       .catch(() => Alert.alert('Error', 'Could not find user'))
       .finally(() => setLoading(false));
-  }, [username]);
+  }, [username, firebaseUser]);
 
   const handleAdd = async () => {
     if (!firebaseUser || !user) return;

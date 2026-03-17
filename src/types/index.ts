@@ -9,6 +9,7 @@ export interface User {
   pushToken?: string;
   isPublic?: boolean;
   availabilityNotificationsEnabled?: boolean;
+  invitedBy?: string;
   contactMethods?: {
     phone?: string;
     facetime?: string;

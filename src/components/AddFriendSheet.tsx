@@ -18,6 +18,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { useAuth } from '../hooks/useAuth';
+import { TESTFLIGHT_URL } from '../constants';
 import { searchUsersByPrefix } from '../services/users';
 import { sendFriendRequest } from '../services/friends';
 import { Avatar } from './Avatar';
@@ -56,14 +57,18 @@ export function AddFriendSheet({ visible, onClose, onNavigateToFriend }: Props) 
     ? Linking.createURL(`friend/${userProfile.username}`)
     : '';
 
+  const shareMessage = deepLink
+    ? `Hey! I'm using HereNow to catch up with friends when we're both free. Join me!\n\nInstall via TestFlight: ${TESTFLIGHT_URL}\n\nThen add me: ${deepLink}`
+    : '';
+
   const handleShareLink = async () => {
-    if (!deepLink) return;
-    await Share.share({ message: `Add me on HereNow! ${deepLink}` });
+    if (!shareMessage) return;
+    await Share.share({ message: shareMessage });
   };
 
   const handleCopyLink = async () => {
-    if (!deepLink) return;
-    await Clipboard.setStringAsync(deepLink);
+    if (!shareMessage) return;
+    await Clipboard.setStringAsync(shareMessage);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
