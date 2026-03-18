@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "expo-dev-client": "~55.0.16",
+    "expo-updates": "~55.0.14",
     "express": "^4.21.0",
     "firebase-admin": "^12.7.0"
   },

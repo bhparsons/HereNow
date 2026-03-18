@@ -8,7 +8,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   slug: "herenow",
   version: "1.0.0",
   orientation: "portrait",
-  icon: "./assets/icon-light.png",
+  icon: IS_DEV ? "./assets/icon-light-dev.png" : "./assets/icon-light.png",
   userInterfaceStyle: "automatic",
   scheme: "herenow",
   runtimeVersion: {
@@ -40,7 +40,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     adaptiveIcon: {
       backgroundColor: "#E6F4FE",
-      foregroundImage: "./assets/android-icon-foreground.png",
+      foregroundImage: IS_DEV
+        ? "./assets/android-icon-foreground-dev.png"
+        : "./assets/android-icon-foreground.png",
       backgroundImage: "./assets/android-icon-background.png",
       monochromeImage: "./assets/android-icon-monochrome.png",
     },
@@ -58,7 +60,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       "expo-notifications",
       {
-        icon: "./assets/icon-light.png",
+        icon: IS_DEV
+          ? "./assets/icon-light-dev.png"
+          : "./assets/icon-light.png",
       },
     ],
     "expo-image-picker",

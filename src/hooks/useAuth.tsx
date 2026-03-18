@@ -58,13 +58,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, []);
 
-  // Re-fetch profile when firebaseUser changes
-  useEffect(() => {
-    if (firebaseUser) {
-      refreshProfile();
-    }
-  }, [firebaseUser?.uid]);
-
   // Register for push notifications when authenticated
   useEffect(() => {
     if (firebaseUser) {
