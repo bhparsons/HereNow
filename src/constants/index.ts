@@ -28,3 +28,12 @@ export const QUICK_DURATIONS: DurationOption[] = [
   { label: '30 min', minutes: 30 },
   { label: '1 hr', minutes: 60 },
 ];
+
+export const STATUS_SUGGESTIONS = [
+  'Free to chat',
+  'On a break',
+  'Bored',
+  'Walking the dog',
+  'Commuting',
+  'Washing dishes',
+];

@@ -1,5 +1,5 @@
-import { ReactNode, useState, useEffect } from 'react';
-import { View, Pressable, ScrollView, Keyboard, Platform } from 'react-native';
+import { ReactNode, useEffect, useRef } from 'react';
+import { View, Pressable, ScrollView, Keyboard, Platform, Animated } from 'react-native';
 import { Modal } from 'react-native';
 
 interface Props {
@@ -10,17 +10,25 @@ interface Props {
 }
 
 export function Sheet({ visible, onClose, children, maxHeight }: Props) {
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const translateY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
     const showSub = Keyboard.addListener(showEvent, (e) => {
-      setKeyboardHeight(e.endCoordinates.height);
+      Animated.timing(translateY, {
+        toValue: -e.endCoordinates.height,
+        duration: e.duration || 250,
+        useNativeDriver: true,
+      }).start();
     });
-    const hideSub = Keyboard.addListener(hideEvent, () => {
-      setKeyboardHeight(0);
+    const hideSub = Keyboard.addListener(hideEvent, (e) => {
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: (e as any).duration || 250,
+        useNativeDriver: true,
+      }).start();
     });
 
     return () => {
@@ -35,21 +43,24 @@ export function Sheet({ visible, onClose, children, maxHeight }: Props) {
         className="flex-1 bg-black/40 justify-end"
         onPress={onClose}
       >
-        <Pressable
+        <Animated.View
           className={`bg-surface rounded-t-3xl px-5 pb-10 pt-3 ${maxHeight ? '' : 'max-h-[70%]'}`}
-          style={maxHeight ? { maxHeight } : undefined}
-          onPress={(e) => e.stopPropagation()}
+          style={[
+            maxHeight ? { maxHeight } : undefined,
+            { transform: [{ translateY }] },
+          ]}
         >
-          <View className="w-9 h-1 rounded-full bg-ink-200 self-center mb-4" />
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            style={{ flexGrow: 1 }}
-            contentContainerStyle={{ paddingBottom: keyboardHeight }}
-            keyboardShouldPersistTaps="handled"
-          >
-            {children}
-          </ScrollView>
-        </Pressable>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <View className="w-9 h-1 rounded-full bg-ink-200 self-center mb-4" />
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              style={{ flexGrow: 1 }}
+              keyboardShouldPersistTaps="handled"
+            >
+              {children}
+            </ScrollView>
+          </Pressable>
+        </Animated.View>
       </Pressable>
     </Modal>
   );

@@ -22,6 +22,7 @@ import { useAuth } from '../../src/hooks/useAuth';
 import { useFriends } from '../../src/hooks/useFriends';
 import { useMyAvailability, useAvailableFriends } from '../../src/hooks/useAvailability';
 import { DurationPicker } from '../../src/components/DurationPicker';
+import { StatusPicker } from '../../src/components/StatusPicker';
 import { AvailableFriendCard } from '../../src/components/AvailableFriendCard';
 import { FriendRow } from '../../src/components/FriendRow';
 import { FriendRequestsSheet } from '../../src/components/FriendRequestsSheet';
@@ -68,6 +69,8 @@ export default function HomeScreen() {
   const { availableFriends } = useAvailableFriends(isAvailable ? friendIds : [], acceptedFriends);
 
   const [showDurationPicker, setShowDurationPicker] = useState(false);
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
+  const [pendingDuration, setPendingDuration] = useState<number>(0);
   const [showRequestsSheet, setShowRequestsSheet] = useState(false);
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -173,13 +176,20 @@ export default function HomeScreen() {
   const getLastConnectedText = (friend: FriendRecord): string =>
     formatLastConnected(friend.lastConnectionAt, { prefix: true });
 
-  const handleGoAvailable = async (minutes: number) => {
+  const handleGoAvailable = (minutes: number) => {
     setShowDurationPicker(false);
-    await goAvailable(minutes);
+    setPendingDuration(minutes);
+    setShowStatusPicker(true);
   };
 
-  const handleQuickDuration = async (minutes: number) => {
-    await goAvailable(minutes);
+  const handleQuickDuration = (minutes: number) => {
+    setPendingDuration(minutes);
+    setShowStatusPicker(true);
+  };
+
+  const handleStatusSelected = async (status: string | null) => {
+    setShowStatusPicker(false);
+    await goAvailable(pendingDuration, status ?? undefined);
   };
 
   const handleGoOnlinePress = () => {
@@ -297,23 +307,38 @@ export default function HomeScreen() {
                 {formatTimeRemaining(timeRemaining)}
               </Text>
             </View>
-            <TextInput
-              className="text-xs text-ink mt-1.5 px-2 py-1.5 rounded-lg"
+            <View
+              className="flex-row items-center mt-1.5 rounded-4xl px-3.5 py-2"
               style={{
-                backgroundColor: 'rgba(255,255,255,0.06)',
+                backgroundColor: 'rgba(255,255,255,0.1)',
                 borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.08)',
-                color: colors.ink.DEFAULT,
+                borderColor: 'rgba(255,255,255,0.15)',
               }}
-              placeholder="Set a status..."
-              placeholderTextColor={colors.ink[300]}
-              maxLength={60}
-              returnKeyType="done"
-              value={statusInput}
-              onChangeText={setStatusInput}
-              onSubmitEditing={() => updateStatus(statusInput || null)}
-              onBlur={() => updateStatus(statusInput || null)}
-            />
+            >
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={16}
+                color={colors.ink[300]}
+                style={{ marginRight: 8 }}
+              />
+              <TextInput
+                className="flex-1 text-sm text-ink p-0"
+                style={{ color: colors.ink.DEFAULT }}
+                placeholder="What are you up to?"
+                placeholderTextColor={colors.ink[300]}
+                maxLength={60}
+                returnKeyType="done"
+                value={statusInput}
+                onChangeText={setStatusInput}
+                onSubmitEditing={() => updateStatus(statusInput || null)}
+                onBlur={() => updateStatus(statusInput || null)}
+              />
+              {statusInput.length > 0 && (
+                <Pressable onPress={() => { setStatusInput(''); updateStatus(null); }}>
+                  <Ionicons name="close-circle" size={16} color={colors.ink[300]} />
+                </Pressable>
+              )}
+            </View>
             <View className="flex-row justify-between gap-2.5 mt-1.5">
               <Pressable
                 className="px-3.5 py-2 rounded-full border-3"
@@ -489,6 +514,12 @@ export default function HomeScreen() {
         visible={showDurationPicker}
         onSelect={handleGoAvailable}
         onClose={() => setShowDurationPicker(false)}
+      />
+
+      <StatusPicker
+        visible={showStatusPicker}
+        onSelect={handleStatusSelected}
+        onClose={() => setShowStatusPicker(false)}
       />
 
       {firebaseUser && (

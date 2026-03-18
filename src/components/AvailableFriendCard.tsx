@@ -105,14 +105,14 @@ export function AvailableFriendCard({ friend, tier, onPress }: Props) {
             </Text>
           ) : (
             <View>
+              {friend.statusMessage && (
+                <Text variant="body" className="text-ink mt-0.5" numberOfLines={1}>
+                  {friend.statusMessage}
+                </Text>
+              )}
               <Text variant="caption" style={{ color: colors.available }} className="mt-0.5">
                 Available for {timeLeft}
               </Text>
-              {friend.statusMessage && (
-                <Text variant="footnote" className="text-ink-300 mt-0.5" numberOfLines={1}>
-                  "{friend.statusMessage}"
-                </Text>
-              )}
             </View>
           )}
         </View>
