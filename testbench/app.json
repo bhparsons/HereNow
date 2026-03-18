@@ -10,6 +10,13 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
-    }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/73416f3e-26b3-4a36-81ee-30c994b15e2e"
+    },
+    "android": {}
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/hooks/useAuth';
@@ -15,14 +15,21 @@ export default function SetupProfileScreen() {
   const { firebaseUser, userProfile, refreshProfile } = useAuth();
   const router = useRouter();
   const [displayName, setDisplayName] = useState(userProfile?.displayName || '');
-  const [username, setUsername] = useState('');
-  const [phone, setPhone] = useState('');
+  const [username, setUsername] = useState(userProfile?.username || '');
+  const [phone, setPhone] = useState(userProfile?.phone || '');
   const [facetimeSource, setFacetimeSource] = useState<FaceTimeSource>('email');
   const [facetimeCustom, setFacetimeCustom] = useState('');
   const [loading, setLoading] = useState(false);
   const [usernameError, setUsernameError] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [facetimeError, setFacetimeError] = useState('');
+
+  // If profile already has a username, skip setup and go to home
+  useEffect(() => {
+    if (userProfile?.username) {
+      router.replace('/(tabs)');
+    }
+  }, [userProfile?.username]);
 
   const authEmail = firebaseUser?.email || '';
 
