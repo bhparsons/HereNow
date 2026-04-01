@@ -1,10 +1,11 @@
 import { ExpoConfig, ConfigContext } from "expo/config";
 
 const IS_DEV = process.env.APP_VARIANT !== "production";
+const IS_EAS_BUILD = !!process.env.EAS_BUILD;
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: IS_DEV ? "HereNow (Dev)" : "HereNow",
+  name: IS_DEV && !IS_EAS_BUILD ? "HereNow (Dev)" : "HereNow",
   slug: "herenow",
   version: "1.0.0",
   orientation: "portrait",
@@ -68,6 +69,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-image-picker",
     "expo-updates",
     "expo-build-properties",
+    "expo-font",
     [
       "expo-camera",
       {
