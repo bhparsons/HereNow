@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../src/hooks/useAuth';
 import { findUserByUsername } from '../../src/services/users';
-import { sendFriendRequest } from '../../src/services/friends';
+import { sendFriendRequest, FriendRequestResult } from '../../src/services/friends';
 import { Avatar } from '../../src/components/Avatar';
 import { Button } from '../../src/components/ui/Button';
 import { Text } from '../../src/components/ui/Text';
@@ -17,7 +17,8 @@ export default function FriendDeepLink() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sent, setSent] = useState(false);
+  const [result, setResult] = useState<FriendRequestResult | null>(null);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (!username) return;
@@ -33,18 +34,19 @@ export default function FriendDeepLink() {
       .finally(() => setLoading(false));
   }, [username, firebaseUser]);
 
-  const handleAdd = async () => {
-    if (!firebaseUser || !user) return;
-    try {
-      await sendFriendRequest(firebaseUser.uid, user.uid);
-      setSent(true);
-      Alert.alert('Sent!', `Friend request sent to ${user.displayName}`);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to send request');
-    }
-  };
+  // Auto-send friend request once user is loaded and we're authenticated
+  useEffect(() => {
+    if (!firebaseUser || !user || result || sending) return;
+    setSending(true);
+    sendFriendRequest(firebaseUser.uid, user.uid)
+      .then(setResult)
+      .catch((error: any) => {
+        Alert.alert('Error', error.message || 'Failed to send request');
+      })
+      .finally(() => setSending(false));
+  }, [firebaseUser, user]);
 
-  if (loading) {
+  if (loading || sending) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator size="large" color={colors.secondary.DEFAULT} />
@@ -67,6 +69,21 @@ export default function FriendDeepLink() {
     );
   }
 
+  const statusMessage = (() => {
+    switch (result) {
+      case 'accepted':
+        return 'You\'re now friends!';
+      case 'already_friends':
+        return 'You\'re already friends!';
+      case 'already_sent':
+        return 'Friend request already sent!';
+      case 'sent':
+        return 'Friend request sent!';
+      default:
+        return null;
+    }
+  })();
+
   return (
     <View className="flex-1 items-center justify-center bg-background p-6">
       <Avatar photoUrl={user.photoUrl} name={user.displayName} size={80} />
@@ -77,17 +94,10 @@ export default function FriendDeepLink() {
         @{user.username}
       </Text>
 
-      {sent ? (
+      {statusMessage && (
         <Text variant="button" className="text-available mt-6">
-          Friend request sent!
+          {statusMessage}
         </Text>
-      ) : (
-        <Button
-          variant="primary"
-          label="Add Friend"
-          onPress={handleAdd}
-          className="mt-6"
-        />
       )}
 
       <Button

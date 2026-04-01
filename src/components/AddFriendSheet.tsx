@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   TextInput,
@@ -20,13 +20,14 @@ import QRCode from 'react-native-qrcode-svg';
 import { useAuth } from '../hooks/useAuth';
 import { TESTFLIGHT_URL } from '../constants';
 import { searchUsersByPrefix } from '../services/users';
-import { sendFriendRequest } from '../services/friends';
+import { sendFriendRequest, acceptFriendRequest, FriendRequestResult } from '../services/friends';
 import { Avatar } from './Avatar';
 import { Button } from './ui/Button';
 import { Text } from './ui/Text';
-import { User } from '../types';
+import { User, FriendRecord } from '../types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/tokens';
+import { declineFriendRequest } from '../services/friends';
 
 type Tab = 'share' | 'scan' | 'search';
 
@@ -34,12 +35,16 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   onNavigateToFriend: (username: string) => void;
+  pendingReceived: FriendRecord[];
+  pendingSent: FriendRecord[];
+  acceptedFriends: FriendRecord[];
+  friendProfiles: Map<string, User>;
 }
 
-export function AddFriendSheet({ visible, onClose, onNavigateToFriend }: Props) {
+export function AddFriendSheet({ visible, onClose, onNavigateToFriend, pendingReceived, pendingSent, acceptedFriends, friendProfiles }: Props) {
   const insets = useSafeAreaInsets();
   const { firebaseUser, userProfile } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('share');
+  const [activeTab, setActiveTab] = useState<Tab>('search');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
@@ -52,6 +57,42 @@ export function AddFriendSheet({ visible, onClose, onNavigateToFriend }: Props) 
   const [searchFocused, setSearchFocused] = useState(false);
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [decliningId, setDecliningId] = useState<string | null>(null);
+
+  // Build lookup of existing friend statuses
+  const friendStatusMap = useMemo(() => {
+    const map = new Map<string, FriendRecord['status']>();
+    for (const f of [...pendingReceived, ...pendingSent, ...acceptedFriends]) {
+      map.set(f.friendId, f.status);
+    }
+    return map;
+  }, [pendingReceived, pendingSent, acceptedFriends]);
+
+  // Filter pending received by search query
+  const filteredPendingReceived = useMemo(() => {
+    if (!searchQuery.trim()) return pendingReceived;
+    const q = searchQuery.trim().toLowerCase();
+    return pendingReceived.filter((fr) => {
+      const profile = friendProfiles.get(fr.friendId);
+      if (!profile) return false;
+      return (
+        profile.username?.toLowerCase().includes(q) ||
+        profile.displayName?.toLowerCase().includes(q)
+      );
+    });
+  }, [pendingReceived, searchQuery, friendProfiles]);
+
+  const handleDeclineRequest = async (friendId: string) => {
+    if (!firebaseUser) return;
+    setDecliningId(friendId);
+    try {
+      await declineFriendRequest(firebaseUser.uid, friendId);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to decline request');
+    } finally {
+      setDecliningId(null);
+    }
+  };
 
   const deepLink = userProfile?.username
     ? Linking.createURL(`friend/${userProfile.username}`)
@@ -133,11 +174,28 @@ export function AddFriendSheet({ visible, onClose, onNavigateToFriend }: Props) 
     if (!firebaseUser) return;
 
     try {
-      await sendFriendRequest(firebaseUser.uid, user.uid);
+      const result = await sendFriendRequest(firebaseUser.uid, user.uid);
       setSentIds((prev) => new Set(prev).add(user.uid));
-      Alert.alert('Sent!', `Friend request sent to ${user.displayName}`);
+      if (result === 'accepted') {
+        Alert.alert('Connected!', `You and ${user.displayName} are now friends!`);
+      } else if (result === 'already_friends') {
+        Alert.alert('Already Friends', `You're already connected with ${user.displayName}`);
+      } else if (result === 'already_sent') {
+        Alert.alert('Already Sent', `You already have a pending request to ${user.displayName}`);
+      } else {
+        Alert.alert('Sent!', `Friend request sent to ${user.displayName}`);
+      }
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to send request');
+    }
+  };
+
+  const handleAcceptRequest = async (friendId: string) => {
+    if (!firebaseUser) return;
+    try {
+      await acceptFriendRequest(firebaseUser.uid, friendId);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to accept request');
     }
   };
 
@@ -215,6 +273,86 @@ export function AddFriendSheet({ visible, onClose, onNavigateToFriend }: Props) 
     setSearchFocused(false);
   };
 
+  const renderUserAction = (userId: string, user?: User) => {
+    if (sentIds.has(userId)) {
+      return <Text variant="button-small" className="text-available">Sent</Text>;
+    }
+    const status = friendStatusMap.get(userId);
+    if (status === 'accepted') {
+      return <Text variant="button-small" className="text-ink-300">Friends</Text>;
+    }
+    if (status === 'pending_sent') {
+      return <Text variant="button-small" className="text-ink-300">Pending</Text>;
+    }
+    if (status === 'pending_received') {
+      return (
+        <View className="flex-row gap-2">
+          <Button variant="primary" size="sm" label="Accept" onPress={() => handleAcceptRequest(userId)} />
+          <Button variant="ghost" size="sm" label="Decline" onPress={() => handleDeclineRequest(userId)} disabled={decliningId === userId} />
+        </View>
+      );
+    }
+    return <Button variant="primary" size="sm" label="Add" onPress={() => user && handleSendRequest(user)} />;
+  };
+
+  const renderPendingInvites = () => {
+    if (filteredPendingReceived.length === 0) return null;
+    return (
+      <>
+        <Text variant="section-header" className="mt-1 mb-2">
+          PENDING INVITES
+        </Text>
+        {filteredPendingReceived.map((item) => {
+          const profile = friendProfiles.get(item.friendId);
+          return (
+            <View key={item.friendId} className="flex-row items-center bg-background p-3.5 rounded-2xl w-full mb-2">
+              <Avatar photoUrl={profile?.photoUrl} name={profile?.displayName || 'User'} size={48} />
+              <View className="flex-1 ml-3">
+                <Text variant="body-medium">{profile?.displayName || 'User'}</Text>
+                <Text variant="caption" className="text-ink-400">@{profile?.username || '...'}</Text>
+              </View>
+              <View className="flex-row gap-2">
+                <Button variant="primary" size="sm" label="Accept" onPress={() => handleAcceptRequest(item.friendId)} />
+                <Button variant="ghost" size="sm" label="Decline" onPress={() => handleDeclineRequest(item.friendId)} disabled={decliningId === item.friendId} />
+              </View>
+            </View>
+          );
+        })}
+      </>
+    );
+  };
+
+  const renderSearchResults = () => {
+    // Filter out users who are already shown in pending invites section
+    const pendingReceivedIds = new Set(filteredPendingReceived.map((fr) => fr.friendId));
+    const filteredResults = searchResults.filter((u) => !pendingReceivedIds.has(u.uid));
+
+    if (filteredResults.length === 0 && filteredPendingReceived.length === 0) {
+      return (
+        <View className="items-center py-10">
+          <Text variant="caption" className="text-ink-300 text-center">
+            {searchQuery.trim() ? 'No users found' : 'Search for friends by username'}
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <>
+        {filteredResults.map((user) => (
+          <View key={user.uid} className="flex-row items-center bg-background p-3.5 rounded-2xl w-full mb-2">
+            <Avatar photoUrl={user.photoUrl} name={user.displayName} size={48} />
+            <View className="flex-1 ml-3">
+              <Text variant="body-medium">{user.displayName}</Text>
+              <Text variant="caption" className="text-ink-400">@{user.username}</Text>
+            </View>
+            {renderUserAction(user.uid, user)}
+          </View>
+        ))}
+      </>
+    );
+  };
+
   const renderSearchTab = () => (
     <View className={searchFocused ? 'flex-1' : ''}>
       <View className={`flex-row gap-2 ${searchFocused ? 'items-center' : ''}`}>
@@ -225,7 +363,7 @@ export function AddFriendSheet({ visible, onClose, onNavigateToFriend }: Props) 
         )}
         <TextInput
           className="flex-1 bg-background rounded-2xl px-4 py-3.5 text-body text-ink border-3 border-ink-100"
-          placeholder="Enter username"
+          placeholder="Search by username"
           value={searchQuery}
           onChangeText={handleChangeText}
           autoCapitalize="none"
@@ -256,28 +394,8 @@ export function AddFriendSheet({ visible, onClose, onNavigateToFriend }: Props) 
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {searchResults.length > 0 ? (
-              searchResults.map((user) => (
-                <View key={user.uid} className="flex-row items-center bg-background p-3.5 rounded-2xl w-full mb-2">
-                  <Avatar photoUrl={user.photoUrl} name={user.displayName} size={48} />
-                  <View className="flex-1 ml-3">
-                    <Text variant="body-medium">{user.displayName}</Text>
-                    <Text variant="caption" className="text-ink-400">@{user.username}</Text>
-                  </View>
-                  {sentIds.has(user.uid) ? (
-                    <Text variant="button-small" className="text-available">Sent</Text>
-                  ) : (
-                    <Button variant="primary" size="sm" label="Add" onPress={() => handleSendRequest(user)} />
-                  )}
-                </View>
-              ))
-            ) : (
-              <View className="items-center py-10">
-                <Text variant="caption" className="text-ink-300 text-center">
-                  Search results will appear here
-                </Text>
-              </View>
-            )}
+            {renderPendingInvites()}
+            {renderSearchResults()}
           </ScrollView>
         </Pressable>
       ) : (
@@ -287,28 +405,8 @@ export function AddFriendSheet({ visible, onClose, onNavigateToFriend }: Props) 
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {searchResults.length > 0 ? (
-            searchResults.map((user) => (
-              <View key={user.uid} className="flex-row items-center bg-background p-3.5 rounded-2xl w-full mb-2">
-                <Avatar photoUrl={user.photoUrl} name={user.displayName} size={48} />
-                <View className="flex-1 ml-3">
-                  <Text variant="body-medium">{user.displayName}</Text>
-                  <Text variant="caption" className="text-ink-400">@{user.username}</Text>
-                </View>
-                {sentIds.has(user.uid) ? (
-                  <Text variant="button-small" className="text-available">Sent</Text>
-                ) : (
-                  <Button variant="primary" size="sm" label="Add" onPress={() => handleSendRequest(user)} />
-                )}
-              </View>
-            ))
-          ) : (
-            <View className="items-center py-10">
-              <Text variant="caption" className="text-ink-300 text-center">
-                Search results will appear here
-              </Text>
-            </View>
-          )}
+          {renderPendingInvites()}
+          {renderSearchResults()}
         </ScrollView>
       )}
     </View>

@@ -16,16 +16,29 @@ import {
 import { db } from '../config/firebase';
 import { FriendRecord, FrequencyGoal } from '../types';
 
+export type FriendRequestResult = 'sent' | 'accepted' | 'already_friends' | 'already_sent';
+
 export async function sendFriendRequest(
   currentUserId: string,
   targetUserId: string
-): Promise<void> {
-  // Check not already friends or pending
+): Promise<FriendRequestResult> {
   const existing = await getDoc(
     doc(db, 'users', currentUserId, 'friends', targetUserId)
   );
+
   if (existing.exists()) {
-    throw new Error('Friend request already exists');
+    const status = existing.data().status;
+    if (status === 'accepted') {
+      return 'already_friends';
+    }
+    if (status === 'pending_sent') {
+      return 'already_sent';
+    }
+    if (status === 'pending_received') {
+      // They already sent us a request — auto-accept
+      await acceptFriendRequest(currentUserId, targetUserId);
+      return 'accepted';
+    }
   }
 
   try {
@@ -48,6 +61,7 @@ export async function sendFriendRequest(
       frequencyGoal: null,
       snoozedUntil: null,
     });
+    return 'sent';
   } catch (error) {
     // Clean up sender side if receiver side failed
     await deleteDoc(doc(db, 'users', currentUserId, 'friends', targetUserId)).catch(() => {});

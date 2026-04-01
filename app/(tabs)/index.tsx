@@ -43,7 +43,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { show: showAddFriend } = useAddFriendModal();
+  const { show: showAddFriend, setFriendData } = useAddFriendModal();
   const { firebaseUser } = useAuth();
   const {
     acceptedFriends,
@@ -51,6 +51,11 @@ export default function HomeScreen() {
     pendingSent,
     friendProfiles,
   } = useFriends(firebaseUser?.uid);
+
+  // Keep AddFriendSheet in sync with friend data
+  useEffect(() => {
+    setFriendData({ pendingReceived, pendingSent, acceptedFriends, friendProfiles });
+  }, [pendingReceived, pendingSent, acceptedFriends, friendProfiles]);
 
   const friendIds = useMemo(
     () => acceptedFriends.map((f) => f.friendId),
