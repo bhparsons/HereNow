@@ -7,6 +7,7 @@
 - [ ] **Error handling audit** — Add error handling for critical paths: batched Firestore writes (friend requests), push token registration failures, availability expiry race conditions
 - [ ] **Fix login reliability** — Login has been inconsistent in the app simulation; debug and stabilize auth flows (Apple, Google, email/password)
 - [x] **Auth account conflict resolution** — Handle cases where a user registers with email then tries to login with Google/Apple on the same email address (Firebase account linking)
+- [x] **Update TestFlight URL** — Replace placeholder in `src/constants/index.ts` (`TESTFLIGHT_URL`) with the real public TestFlight link once Apple approves the external beta build
 
 ## Medium Priority — Feature Gaps
 
