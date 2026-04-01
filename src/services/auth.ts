@@ -32,7 +32,8 @@ export function subscribeToAuthState(callback: (user: FirebaseUser | null) => vo
 }
 
 export async function signInWithApple(): Promise<FirebaseUser> {
-  const nonce = Math.random().toString(36).substring(2, 10);
+  const nonce = Crypto.getRandomBytes(32)
+    .reduce((acc, byte) => acc + byte.toString(16).padStart(2, '0'), '');
   const hashedNonce = await Crypto.digestStringAsync(
     Crypto.CryptoDigestAlgorithm.SHA256,
     nonce
@@ -46,17 +47,16 @@ export async function signInWithApple(): Promise<FirebaseUser> {
     nonce: hashedNonce,
   });
 
+  if (!credential.identityToken) {
+    throw new Error('Apple Sign-In failed: no identity token returned.');
+  }
+
   const oauthCredential = new OAuthProvider('apple.com').credential({
-    idToken: credential.identityToken!,
+    idToken: credential.identityToken,
     rawNonce: nonce,
   });
 
-  let result;
-  try {
-    result = await signInWithCredential(auth, oauthCredential);
-  } catch (error) {
-    handleAuthError(error);
-  }
+  const result = await signInWithCredential(auth, oauthCredential).catch(handleAuthError);
 
   // Create profile if new user
   const existing = await getUserProfile(result.user.uid);
@@ -88,12 +88,7 @@ export async function signInWithGoogle(): Promise<FirebaseUser> {
 
   const credential = GoogleAuthProvider.credential(response.data.idToken);
 
-  let result;
-  try {
-    result = await signInWithCredential(auth, credential);
-  } catch (error) {
-    handleAuthError(error);
-  }
+  const result = await signInWithCredential(auth, credential).catch(handleAuthError);
 
   // Create profile if new user
   const existing = await getUserProfile(result.user.uid);
