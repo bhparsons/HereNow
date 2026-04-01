@@ -28,8 +28,11 @@ app.get('/api/users', async (_req, res) => {
         uid: d.id,
         displayName: data.displayName,
         username: data.username,
+        email: data.email ?? null,
+        phone: data.phone ?? null,
         photoUrl: data.photoUrl ?? null,
         isPublic: data.isPublic ?? false,
+        availabilityNotificationsEnabled: data.availabilityNotificationsEnabled ?? true,
         contactMethods: data.contactMethods ?? {},
         createdAt: data.createdAt?.toDate?.() ?? null,
       };
@@ -42,7 +45,7 @@ app.get('/api/users', async (_req, res) => {
 
 app.post('/api/users', async (req, res) => {
   try {
-    const { email, password, displayName, username } = req.body;
+    const { email, password, displayName, username, phone } = req.body;
     if (!email || !password || !displayName || !username) {
       return res.status(400).json({ error: 'email, password, displayName, and username are required' });
     }
@@ -58,6 +61,9 @@ app.post('/api/users', async (req, res) => {
     await db.collection('users').doc(userRecord.uid).set({
       displayName,
       username,
+      email,
+      phone: phone || null,
+      isPublic: true,
       photoUrl: null,
       createdAt: FieldValue.serverTimestamp(),
     });
@@ -71,13 +77,14 @@ app.post('/api/users', async (req, res) => {
 app.patch('/api/users/:uid', async (req, res) => {
   try {
     const { uid } = req.params;
-    const { displayName, username, isPublic, contactMethods } = req.body;
+    const { displayName, username, isPublic, contactMethods, availabilityNotificationsEnabled } = req.body;
 
     const update: Record<string, any> = {};
     if (displayName !== undefined) update.displayName = displayName;
     if (username !== undefined) update.username = username;
     if (isPublic !== undefined) update.isPublic = isPublic;
     if (contactMethods !== undefined) update.contactMethods = contactMethods;
+    if (availabilityNotificationsEnabled !== undefined) update.availabilityNotificationsEnabled = availabilityNotificationsEnabled;
 
     if (Object.keys(update).length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
@@ -107,6 +114,12 @@ app.delete('/api/users/:uid', async (req, res) => {
       await db.collection('users').doc(friendDoc.id).collection('friends').doc(uid).delete();
       // Remove from this user's side
       await friendDoc.ref.delete();
+    }
+
+    // Delete connections
+    const connectionsSnap = await db.collection('connections').where('userIds', 'array-contains', uid).get();
+    for (const connDoc of connectionsSnap.docs) {
+      await connDoc.ref.delete();
     }
 
     // Delete availability
@@ -323,7 +336,7 @@ app.post('/api/connections/log', async (req, res) => {
 
     // Create connection record
     await db.collection('connections').add({
-      userIds: [uid, friendId],
+      userIds: uid < friendId ? [uid, friendId] : [friendId, uid],
       timestamp: now,
       type: 'manual',
       reportedBy: uid,
@@ -350,6 +363,31 @@ app.post('/api/connections/log', async (req, res) => {
     await batch.commit();
 
     res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/connections/:uid/:friendId', async (req, res) => {
+  try {
+    const { uid, friendId } = req.params;
+    const userIds = uid < friendId ? [uid, friendId] : [friendId, uid];
+    const snap = await db.collection('connections')
+      .where('userIds', '==', userIds)
+      .orderBy('timestamp', 'desc')
+      .limit(20)
+      .get();
+    const connections = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        userIds: data.userIds,
+        timestamp: data.timestamp?.toDate?.() ?? null,
+        type: data.type,
+        reportedBy: data.reportedBy,
+      };
+    });
+    res.json(connections);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -500,7 +538,10 @@ app.get('/api/state', async (_req, res) => {
           uid: d.id,
           displayName: data.displayName,
           username: data.username,
+          email: data.email ?? null,
+          phone: data.phone ?? null,
           isPublic: data.isPublic ?? false,
+          availabilityNotificationsEnabled: data.availabilityNotificationsEnabled ?? true,
           contactMethods: data.contactMethods ?? {},
           friends,
         };

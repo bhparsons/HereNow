@@ -232,6 +232,13 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
+        <div>
+          <label>Availability Notifications</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="u-avail-notif" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
       <div class="form-row">
         <div><label>Phone</label><input id="u-phone" placeholder="+15551234567"></div>
@@ -311,6 +318,7 @@
         <div style="flex: 1; min-width: 200px;">
           <label id="fs-goal-label">Connection Goal</label>
           <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <span class="chip" data-goal="daily" onclick="setGoal('daily')">Daily</span>
             <span class="chip" data-goal="weekly" onclick="setGoal('weekly')">Weekly</span>
             <span class="chip" data-goal="monthly" onclick="setGoal('monthly')">Monthly</span>
             <span class="chip" data-goal="quarterly" onclick="setGoal('quarterly')">Quarterly</span>
@@ -346,6 +354,17 @@
       </div>
     </div>
 
+    <!-- Connection History -->
+    <div class="panel panel-full">
+      <h2>Connection History</h2>
+      <div class="form-row" style="margin-bottom: 12px;">
+        <div><label>User</label><select id="ch-user"></select></div>
+        <div><label>Friend</label><select id="ch-friend"></select></div>
+        <div style="display:flex;align-items:flex-end;"><button class="btn-primary" onclick="loadConnectionHistory()">View History</button></div>
+      </div>
+      <div id="connection-history"></div>
+    </div>
+
     <!-- State Viewer -->
     <div class="panel panel-full">
       <h2>Full State <button class="btn-primary btn-sm" onclick="refreshAll()" style="margin-left: 8px;">Refresh</button></h2>
@@ -374,7 +393,7 @@
     }
 
     function populateSelects() {
-      const selects = ['f-from', 'f-to', 'a-user', 'fs-user', 'fs-friend', 'ic-user-a', 'ic-user-b'];
+      const selects = ['f-from', 'f-to', 'a-user', 'fs-user', 'fs-friend', 'ic-user-a', 'ic-user-b', 'ch-user', 'ch-friend'];
       for (const id of selects) {
         const sel = document.getElementById(id);
         const val = sel.value;
@@ -408,6 +427,7 @@
         document.getElementById('u-email').value = '';
         document.getElementById('u-password').value = '';
         document.getElementById('u-public').checked = false;
+        document.getElementById('u-avail-notif').checked = true;
         document.getElementById('u-phone').value = '';
         document.getElementById('u-facetime').value = '';
         document.getElementById('u-whatsapp').value = '';
@@ -424,6 +444,7 @@
       document.getElementById('u-name').value = user.displayName || '';
       document.getElementById('u-username').value = user.username || '';
       document.getElementById('u-public').checked = !!user.isPublic;
+      document.getElementById('u-avail-notif').checked = user.availabilityNotificationsEnabled !== false;
       document.getElementById('u-phone').value = user.contactMethods?.phone || '';
       document.getElementById('u-facetime').value = user.contactMethods?.facetime || '';
       document.getElementById('u-whatsapp').value = user.contactMethods?.whatsapp || '';
@@ -436,8 +457,9 @@
       if (users.length === 0) {
         html = '<p class="empty">No users yet. Create one above.</p>';
       } else {
-        html = '<table><tr><th>Name</th><th>Username</th><th>Contact</th><th>UID</th><th></th></tr>';
+        html = '<table><tr><th>Name</th><th>Username</th><th>Email / Phone</th><th>Contact</th><th>UID</th><th></th></tr>';
         for (const u of users) {
+          const emailPhone = [u.email, u.phone].filter(Boolean).join(' / ') || '<span style="color:#94A3B8">—</span>';
           const contacts = [];
           if (u.contactMethods?.facetime) contacts.push(`FT: ${u.contactMethods.facetime}`);
           if (u.contactMethods?.phone) contacts.push(`Ph: ${u.contactMethods.phone}`);
@@ -446,8 +468,9 @@
             ? contacts.map(c => `<span class="detail-tag" style="background:#EEF2FF;color:#4338CA">${c}</span>`).join(' ')
             : '<span style="color:#94A3B8">—</span>';
           html += `<tr>
-            <td>${u.displayName}${u.isPublic ? ' <span class="detail-tag" style="background:#D1FAE5;color:#065F46">public</span>' : ''}</td>
+            <td>${u.displayName}${u.isPublic ? ' <span class="detail-tag" style="background:#D1FAE5;color:#065F46">public</span>' : ''}${u.availabilityNotificationsEnabled === false ? ' <span class="detail-tag" style="background:#FEF3C7;color:#92400E">notif off</span>' : ''}</td>
             <td>@${u.username}</td>
+            <td>${emailPhone}</td>
             <td>${contactStr}</td>
             <td class="mono">${u.uid.slice(0, 12)}...</td>
             <td><button class="btn-danger btn-sm" onclick="deleteUser('${u.uid}')">Delete</button></td>
@@ -579,7 +602,13 @@
             availStr += ` <span class="badge-conversation">chatting w/ ${withName}</span>`;
           }
         }
-        html += `<tr><td>${u.displayName} <span class="mono">@${u.username}</span></td><td>${friendsStr}</td><td>${availStr}</td></tr>`;
+        const userDetails = [];
+        if (u.email) userDetails.push(`<span class="mono">${u.email}</span>`);
+        if (u.phone) userDetails.push(`<span class="mono">${u.phone}</span>`);
+        if (u.isPublic) userDetails.push('<span class="detail-tag" style="background:#D1FAE5;color:#065F46">public</span>');
+        if (u.availabilityNotificationsEnabled === false) userDetails.push('<span class="detail-tag" style="background:#FEF3C7;color:#92400E">notif off</span>');
+        const userInfo = `${u.displayName} <span class="mono">@${u.username}</span>${userDetails.length ? '<div class="detail-row">' + userDetails.join(' ') + '</div>' : ''}`;
+        html += `<tr><td>${userInfo}</td><td>${friendsStr}</td><td>${availStr}</td></tr>`;
       }
       html += '</table>';
       if (state.users.length === 0) html = '<p class="empty">No data yet.</p>';
@@ -601,6 +630,7 @@
       const displayName = document.getElementById('u-name').value;
       const username = document.getElementById('u-username').value;
       const isPublic = document.getElementById('u-public').checked;
+      const availabilityNotificationsEnabled = document.getElementById('u-avail-notif').checked;
       const phone = document.getElementById('u-phone').value.trim();
       const facetime = document.getElementById('u-facetime').value.trim();
       const whatsapp = document.getElementById('u-whatsapp').value.trim();
@@ -613,7 +643,7 @@
       try {
         if (uid) {
           // Edit existing user
-          await api('PATCH', `/api/users/${uid}`, { displayName, username, isPublic, contactMethods });
+          await api('PATCH', `/api/users/${uid}`, { displayName, username, isPublic, availabilityNotificationsEnabled, contactMethods });
           toast(`Updated ${displayName}`);
         } else {
           // Create new user
@@ -834,6 +864,35 @@
         await refreshAll();
         await loadFriendSettings();
       } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function loadConnectionHistory() {
+      const uid = document.getElementById('ch-user').value;
+      const friendId = document.getElementById('ch-friend').value;
+      const container = document.getElementById('connection-history');
+      if (!uid || !friendId || uid === friendId) {
+        container.innerHTML = '<p class="empty">Select two different users.</p>';
+        return;
+      }
+      try {
+        const connections = await api('GET', `/api/connections/${uid}/${friendId}`);
+        if (connections.length === 0) {
+          container.innerHTML = '<p class="empty">No connections found.</p>';
+          return;
+        }
+        const userName = users.find(u => u.uid === uid)?.displayName || uid.slice(0, 8);
+        const friendName = users.find(u => u.uid === friendId)?.displayName || friendId.slice(0, 8);
+        let html = '<table><tr><th>Date</th><th>Type</th><th>Reported By</th></tr>';
+        for (const c of connections) {
+          const date = c.timestamp ? new Date(c.timestamp).toLocaleString() : '?';
+          const reporter = users.find(u => u.uid === c.reportedBy)?.displayName || c.reportedBy?.slice(0, 8) || '?';
+          html += `<tr><td>${date}</td><td>${c.type}</td><td>${reporter}</td></tr>`;
+        }
+        html += '</table>';
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = `<p class="empty" style="color:#EF4444">${e.message}</p>`;
+      }
     }
 
     // Initial load
