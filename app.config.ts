@@ -1,15 +1,30 @@
 import { ExpoConfig, ConfigContext } from "expo/config";
 
-const IS_DEV = process.env.APP_VARIANT !== "production";
-const IS_EAS_BUILD = !!process.env.EAS_BUILD;
+const APP_VARIANT =
+  (process.env.APP_VARIANT as "development" | "preview" | "production") ??
+  "development";
+
+const appName: Record<string, string> = {
+  development: "HereNow (Dev)",
+  preview: "HereNow (Preview)",
+  production: "HereNow",
+};
+
+const bundleId: Record<string, string> = {
+  development: "com.bhparsons.herenow.dev",
+  preview: "com.bhparsons.herenow.preview",
+  production: "com.bhparsons.herenow",
+};
+
+const useDevIcon = APP_VARIANT !== "production";
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: IS_DEV && !IS_EAS_BUILD ? "HereNow (Dev)" : "HereNow",
+  name: appName[APP_VARIANT] ?? "HereNow",
   slug: "herenow",
   version: "1.0.0",
   orientation: "portrait",
-  icon: IS_DEV ? "./assets/icon-light-dev.png" : "./assets/icon-light.png",
+  icon: useDevIcon ? "./assets/icon-light-dev.png" : "./assets/icon-light.png",
   userInterfaceStyle: "automatic",
   scheme: "herenow",
   runtimeVersion: {
@@ -25,9 +40,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   ios: {
     supportsTablet: true,
-    bundleIdentifier: IS_DEV
-      ? "com.bhparsons.herenow.dev"
-      : "com.bhparsons.herenow",
+    bundleIdentifier: bundleId[APP_VARIANT] ?? "com.bhparsons.herenow",
     appleTeamId: "CJV4T7G5Z9",
     usesAppleSignIn: true,
     googleServicesFile: "./GoogleService-Info.plist",
@@ -41,15 +54,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     adaptiveIcon: {
       backgroundColor: "#E6F4FE",
-      foregroundImage: IS_DEV
+      foregroundImage: useDevIcon
         ? "./assets/android-icon-foreground-dev.png"
         : "./assets/android-icon-foreground.png",
       backgroundImage: "./assets/android-icon-background.png",
       monochromeImage: "./assets/android-icon-monochrome.png",
     },
-    package: IS_DEV
-      ? "com.bhparsons.herenow.dev"
-      : "com.bhparsons.herenow",
+    package: bundleId[APP_VARIANT] ?? "com.bhparsons.herenow",
     permissions: ["android.permission.CAMERA"],
   },
   web: {
@@ -61,7 +72,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       "expo-notifications",
       {
-        icon: IS_DEV
+        icon: useDevIcon
           ? "./assets/icon-light-dev.png"
           : "./assets/icon-light.png",
       },

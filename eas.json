@@ -12,7 +12,7 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "APP_VARIANT": "production"
+        "APP_VARIANT": "preview"
       }
     },
     "production": {
