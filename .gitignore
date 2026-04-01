@@ -29,6 +29,7 @@ yarn-error.*
 # macOS
 .DS_Store
 *.pem
+*.pdf
 
 # local env files
 .env*.local
@@ -47,8 +48,10 @@ functions/lib/
 assets/mockups/
 screenshots/
 
+# Testbench (dev-only Firebase admin utility)
+testbench/
+
 # Firebase service account keys
-testbench/service-account-key.json
 secrets/
 
 # Claude Code
