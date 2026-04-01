@@ -50,3 +50,6 @@ screenshots/
 # Firebase service account keys
 testbench/service-account-key.json
 secrets/
+
+# Claude Code
+.claude/
