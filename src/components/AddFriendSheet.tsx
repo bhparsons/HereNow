@@ -58,6 +58,7 @@ export function AddFriendSheet({ visible, onClose, onNavigateToFriend, pendingRe
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [decliningId, setDecliningId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   // Build lookup of existing friend statuses
   const friendStatusMap = useMemo(() => {
@@ -82,6 +83,20 @@ export function AddFriendSheet({ visible, onClose, onNavigateToFriend, pendingRe
     });
   }, [pendingReceived, searchQuery, friendProfiles]);
 
+  // Filter pending sent by search query
+  const filteredPendingSent = useMemo(() => {
+    if (!searchQuery.trim()) return pendingSent;
+    const q = searchQuery.trim().toLowerCase();
+    return pendingSent.filter((fr) => {
+      const profile = friendProfiles.get(fr.friendId);
+      if (!profile) return false;
+      return (
+        profile.username?.toLowerCase().includes(q) ||
+        profile.displayName?.toLowerCase().includes(q)
+      );
+    });
+  }, [pendingSent, searchQuery, friendProfiles]);
+
   const handleDeclineRequest = async (friendId: string) => {
     if (!firebaseUser) return;
     setDecliningId(friendId);
@@ -91,6 +106,19 @@ export function AddFriendSheet({ visible, onClose, onNavigateToFriend, pendingRe
       Alert.alert('Error', error.message || 'Failed to decline request');
     } finally {
       setDecliningId(null);
+    }
+  };
+
+  const handleCancelRequest = async (friendId: string) => {
+    if (!firebaseUser) return;
+    setCancellingId(friendId);
+    try {
+      await declineFriendRequest(firebaseUser.uid, friendId);
+      setSentIds((prev) => { const next = new Set(prev); next.delete(friendId); return next; });
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to cancel request');
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -282,7 +310,7 @@ export function AddFriendSheet({ visible, onClose, onNavigateToFriend, pendingRe
       return <Text variant="button-small" className="text-ink-300">Friends</Text>;
     }
     if (status === 'pending_sent') {
-      return <Text variant="button-small" className="text-ink-300">Pending</Text>;
+      return <Button variant="ghost" size="sm" label="Cancel" onPress={() => handleCancelRequest(userId)} disabled={cancellingId === userId} />;
     }
     if (status === 'pending_received') {
       return (
@@ -322,12 +350,37 @@ export function AddFriendSheet({ visible, onClose, onNavigateToFriend, pendingRe
     );
   };
 
-  const renderSearchResults = () => {
-    // Filter out users who are already shown in pending invites section
-    const pendingReceivedIds = new Set(filteredPendingReceived.map((fr) => fr.friendId));
-    const filteredResults = searchResults.filter((u) => !pendingReceivedIds.has(u.uid));
+  const renderSentRequests = () => {
+    if (filteredPendingSent.length === 0) return null;
+    return (
+      <>
+        <Text variant="section-header" className="mt-1 mb-2">
+          SENT REQUESTS
+        </Text>
+        {filteredPendingSent.map((item) => {
+          const profile = friendProfiles.get(item.friendId);
+          return (
+            <View key={item.friendId} className="flex-row items-center bg-background p-3.5 rounded-2xl w-full mb-2">
+              <Avatar photoUrl={profile?.photoUrl} name={profile?.displayName || 'User'} size={48} />
+              <View className="flex-1 ml-3">
+                <Text variant="body-medium">{profile?.displayName || 'User'}</Text>
+                <Text variant="caption" className="text-ink-400">@{profile?.username || '...'}</Text>
+              </View>
+              <Button variant="ghost" size="sm" label="Cancel" onPress={() => handleCancelRequest(item.friendId)} disabled={cancellingId === item.friendId} />
+            </View>
+          );
+        })}
+      </>
+    );
+  };
 
-    if (filteredResults.length === 0 && filteredPendingReceived.length === 0) {
+  const renderSearchResults = () => {
+    // Filter out users who are already shown in pending sections
+    const pendingReceivedIds = new Set(filteredPendingReceived.map((fr) => fr.friendId));
+    const pendingSentIds = new Set(filteredPendingSent.map((fr) => fr.friendId));
+    const filteredResults = searchResults.filter((u) => !pendingReceivedIds.has(u.uid) && !pendingSentIds.has(u.uid));
+
+    if (filteredResults.length === 0 && filteredPendingReceived.length === 0 && filteredPendingSent.length === 0) {
       return (
         <View className="items-center py-10">
           <Text variant="caption" className="text-ink-300 text-center">
@@ -395,6 +448,7 @@ export function AddFriendSheet({ visible, onClose, onNavigateToFriend, pendingRe
             keyboardShouldPersistTaps="handled"
           >
             {renderPendingInvites()}
+            {renderSentRequests()}
             {renderSearchResults()}
           </ScrollView>
         </Pressable>

@@ -25,7 +25,6 @@ import { DurationPicker } from '../../src/components/DurationPicker';
 import { StatusPicker } from '../../src/components/StatusPicker';
 import { AvailableFriendCard } from '../../src/components/AvailableFriendCard';
 import { FriendRow } from '../../src/components/FriendRow';
-import { FriendRequestsSheet } from '../../src/components/FriendRequestsSheet';
 import { FriendSettingsSheet } from '../../src/components/FriendSettingsSheet';
 import { Logo } from '../../src/components/Logo';
 import { Button } from '../../src/components/ui/Button';
@@ -43,19 +42,13 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { show: showAddFriend, setFriendData } = useAddFriendModal();
+  const { show: showAddFriend } = useAddFriendModal();
   const { firebaseUser } = useAuth();
   const {
     acceptedFriends,
     pendingReceived,
-    pendingSent,
     friendProfiles,
   } = useFriends(firebaseUser?.uid);
-
-  // Keep AddFriendSheet in sync with friend data
-  useEffect(() => {
-    setFriendData({ pendingReceived, pendingSent, acceptedFriends, friendProfiles });
-  }, [pendingReceived, pendingSent, acceptedFriends, friendProfiles]);
 
   const friendIds = useMemo(
     () => acceptedFriends.map((f) => f.friendId),
@@ -76,7 +69,6 @@ export default function HomeScreen() {
   const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [pendingDuration, setPendingDuration] = useState<number>(0);
-  const [showRequestsSheet, setShowRequestsSheet] = useState(false);
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusInput, setStatusInput] = useState('');
@@ -259,7 +251,7 @@ export default function HomeScreen() {
         <View className="relative">
           <IconButton
             icon={<Ionicons name="notifications-outline" size={24} color={colors.ink.DEFAULT} />}
-            onPress={() => setShowRequestsSheet(true)}
+            onPress={showAddFriend}
           />
           {hasPendingRequests && (
             <View className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-error border-2 border-background" />
@@ -526,17 +518,6 @@ export default function HomeScreen() {
         onSelect={handleStatusSelected}
         onClose={() => setShowStatusPicker(false)}
       />
-
-      {firebaseUser && (
-        <FriendRequestsSheet
-          visible={showRequestsSheet}
-          onClose={() => setShowRequestsSheet(false)}
-          pendingReceived={pendingReceived}
-          pendingSent={pendingSent}
-          friendProfiles={friendProfiles}
-          currentUserId={firebaseUser.uid}
-        />
-      )}
 
       {selectedFriend && firebaseUser && (
         <FriendSettingsSheet
