@@ -7,6 +7,7 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   'auth/weak-password': 'Password must be at least 6 characters.',
   'auth/too-many-requests': 'Too many failed attempts. Please wait a few minutes.',
   'auth/user-disabled': 'This account has been disabled.',
+  'auth/operation-not-allowed': 'This sign-in method is not currently available. Please try another method or contact support.',
 };
 
 export function getFriendlyAuthError(error: any): { message: string; field?: 'email' | 'password' } {
